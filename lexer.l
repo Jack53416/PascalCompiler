@@ -31,12 +31,12 @@ assignop    :=
 
 {delimiter}     {charNumber++; }
 \n              {lineNumber++; charNumber = 0;}
-{num}           {print("num"); }
+{num}           { return NUM; }
 
-{sign}          {print("sign"); }
+{sign}          { return SIGN; }
 {assignop}      {print("assignop"); }
-{mulop}         {print("mulop"); }
-{relop}         {print("relop"); }
+{mulop}         { return MULOP; }
+{relop}         { return RELOP; }
 
 program         {print("program"); }
 var             {print("var"); }
@@ -48,8 +48,9 @@ function        {print("function"); }
 procedure       {print("procedure"); }
 begin           {print("begin"); }
 end             {print("end");}
-or              {print("or"); }
-not             {print("not"); }
+
+or              { return OR; }
+not             { return NOT; }
 if              {print("if"); }
 then            {print("then"); }
 else            {print("else"); }
@@ -58,8 +59,8 @@ while           {print("while"); }
 
 {id}            {print("id");}
 
-<<EOF>>         {return 0;}
-.               ECHO;
+<<EOF>>         {return DONE;}
+.               { return yytext[0];}
 
 %%
 

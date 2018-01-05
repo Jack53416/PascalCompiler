@@ -1,11 +1,11 @@
 #include <iostream>
 
-#include "global.hpp"
+#include "parser.hpp"
 
 using namespace std;
 
 int main (int argc, char* argv[])
 {
-    yylex();
+    yyparse();
     return 0;
 }

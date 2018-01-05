@@ -33,3 +33,10 @@
 
 # Lexer output files
 lexer.cpp
+
+#Parser output files
+parser.cpp
+parser.hpp
+
+#Compiler executable
+compiler

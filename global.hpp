@@ -2,6 +2,7 @@
 #define GLOBAL_H
 
 #include <iostream>
+#include "parser.hpp"
 
 using namespace std;
 
@@ -10,7 +11,8 @@ struct emitter{
         cout << cString << endl;
     }
 };
-
+extern int yyparse();
 int yylex();
+
 
 #endif 
