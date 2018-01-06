@@ -1,17 +1,23 @@
-objects = lexer.o parser.o main.o
+objects = lexer.o parser.o SymbolTableManager.o main.o
 cc = g++
 flags = -pedantic -Wall -Wredundant-decls -Wmissing-declarations -flto -Wodr
 
 compiler: $(objects)
-	$(cc) $(flags) -o compiler $(objects)
+	$(cc) $(flags) -g -o compiler $(objects)
 
 lexer.o: lexer.cpp global.hpp
+	$(cc) -g -c -o lexer.o lexer.cpp
 
 main.o: main.cpp global.hpp
+	$(cc) $(flags) -g -c -o main.o main.cpp
 
 parser.o: parser.cpp parser.hpp
+	$(cc) -g -c -o parser.o parser.cpp
 
-global.hpp: parser.hpp
+global.hpp: parser.hpp SymbolTableManager.hpp
+
+SymbolTableManager.o: SymbolTableManager.cpp SymbolTableManager.hpp
+	$(cc) -g -c -o SymbolTableManager.o SymbolTableManager.cpp
 
 parser.cpp parser.hpp: parser.y
 	bison -d -o parser.cpp parser.y

@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include "parser.hpp"
+#include "SymbolTableManager.hpp"
 
 using namespace std;
 

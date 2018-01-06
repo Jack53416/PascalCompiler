@@ -34,8 +34,8 @@
 
 program:                    PROGRAM ID '(' identifier_list ')' ';'
                             declarations
-                            subprogram_declaration
-                            compound_statement
+                            subprogram_declarations
+                            compound_statement '.'
                             ;
 
 

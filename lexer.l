@@ -4,7 +4,7 @@
     using namespace std;
     
     emitter print;
-	
+	SymbolTableManager& symbolTable = SymbolTableManager::getInstance();
 	unsigned int lineNumber = 0;
 	unsigned int charNumber = 0;
 %}
@@ -31,35 +31,36 @@ assignop    :=
 
 {delimiter}     {charNumber++; }
 \n              {lineNumber++; charNumber = 0;}
-{num}           { return NUM; }
+{integer}       { yylval = symbolTable.lookUpPush(NUM, yytext); NUM; }
+{num}           { yylval = symbolTable.lookUpPush(NUM, yytext); return NUM; }
 
 {sign}          { return SIGN; }
-{assignop}      {print("assignop"); }
+{assignop}      { return ASSIGNOP; }
 {mulop}         { return MULOP; }
 {relop}         { return RELOP; }
 
-program         {print("program"); }
-var             {print("var"); }
-array           {print("array"); }
-of              {print("of"); }
-integer         {print("integer"); }
-real            {print("float"); }
-function        {print("function"); }
-procedure       {print("procedure"); }
-begin           {print("begin"); }
-end             {print("end");}
+program         { return PROGRAM; }
+var             { return VAR;  }
+array           { return ARRAY; }
+of              { return OF; }
+integer         { return INTEGER; }
+real            { return REAL; }
+function        { return FUNCTION; }
+procedure       { return PROCEDURE; }
+begin           { return BEGIN_TOKEN; }
+end             { return END; }
 
 or              { return OR; }
 not             { return NOT; }
-if              {print("if"); }
-then            {print("then"); }
-else            {print("else"); }
-do              {print("do"); }
-while           {print("while"); }
+if              { return IF; }
+then            { return THEN; }
+else            { return ELSE; }
+do              { return DO; }
+while           { return WHILE; }
 
-{id}            {print("id");}
+{id}            { yylval = symbolTable.lookUpPush(ID, yytext); return ID;}
 
-<<EOF>>         {return DONE;}
+<<EOF>>         { return DONE; }
 .               { return yytext[0];}
 
 %%
