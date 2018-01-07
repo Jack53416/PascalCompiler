@@ -3,7 +3,6 @@
     #include "global.hpp"
     using namespace std;
     
-    emitter print;
 	SymbolTableManager& symbolTable = SymbolTableManager::getInstance();
 	unsigned int lineNumber = 0;
 	unsigned int charNumber = 0;
@@ -31,13 +30,29 @@ assignop    :=
 
 {delimiter}     {charNumber++; }
 \n              {lineNumber++; charNumber = 0;}
-{integer}       { yylval = symbolTable.lookUpPush(NUM, yytext); NUM; }
-{num}           { yylval = symbolTable.lookUpPush(NUM, yytext); return NUM; }
+{integer}       { 
+                    yylval = symbolTable.lookUpPush(NUM, yytext, SymbolTableManager::Type::INTEGER);
+                    return NUM; 
+                }
+{num}           { 
+                    yylval = symbolTable.lookUpPush(NUM, yytext,
+                    SymbolTableManager::Type::REAL); 
+                    return NUM; 
+                }
 
-{sign}          { return SIGN; }
+{sign}          {
+                    yylval = yytext[0];
+                    return SIGN; 
+                }
 {assignop}      { return ASSIGNOP; }
-{mulop}         { return MULOP; }
-{relop}         { return RELOP; }
+{mulop}         {
+                    yylval = yytext[0];
+                    return MULOP; 
+                }
+{relop}         {
+                    yylval = yytext[0];
+                    return RELOP; 
+                }
 
 program         { return PROGRAM; }
 var             { return VAR;  }
@@ -58,7 +73,10 @@ else            { return ELSE; }
 do              { return DO; }
 while           { return WHILE; }
 
-{id}            { yylval = symbolTable.lookUpPush(ID, yytext); return ID;}
+{id}            { 
+                    yylval = symbolTable.lookUpPush(ID, yytext);
+                    return ID;
+                }
 
 <<EOF>>         { return DONE; }
 .               { return yytext[0];}

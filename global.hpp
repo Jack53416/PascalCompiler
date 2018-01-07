@@ -3,11 +3,12 @@
 
 #include <iostream>
 #include "parser.hpp"
-#include "SymbolTableManager.hpp"
+#include "SymbolTableManager.h"
+#include "Emitter.h"
 
 using namespace std;
 
-struct emitter{
+struct logger{
     void operator()(const char* cString) const{ 
         cout << cString << endl;
     }

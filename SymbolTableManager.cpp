@@ -1,4 +1,4 @@
-#include "SymbolTableManager.hpp"
+#include "SymbolTableManager.h"
 
 
 SymbolTableManager::SymbolTableManager()
@@ -38,6 +38,18 @@ int SymbolTableManager::lookUpPush(int tokenCode, string tokenVal)
 	symbolTable.push_back(symbol);
 	return symbolTable.size() - 1;
 }
+
+int SymbolTableManager::lookUpPush(int tokenCode, string tokenVal, Type tokenType)
+{
+    Symbol symbol(tokenCode, tokenVal, tokenType);
+	int idx = lookUp(symbol);
+	if (idx >= 0) {
+		return idx;
+	}
+	symbolTable.push_back(symbol);
+	return symbolTable.size() - 1;
+}
+
 
 int SymbolTableManager::lookUp(const Symbol& symbol) const
 {

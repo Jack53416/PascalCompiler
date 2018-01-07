@@ -1,8 +1,13 @@
 %{
 	#include "global.hpp"
+	#include <iostream>
+	using namespace std;
+	
+	SymbolTableManager& symboltable = SymbolTableManager::getInstance();
     
 	void yyerror(const char* s);
-	emitter printer;
+	Emitter emiter("binary.asm");
+	logger log;
 %}
 
 %token PROGRAM
@@ -33,6 +38,7 @@
 %%
 
 program:                    PROGRAM ID '(' identifier_list ')' ';'
+                            {emiter << "jump.i #lab0:" << "lab0:";}
                             declarations
                             subprogram_declarations
                             compound_statement '.'
@@ -118,18 +124,23 @@ expression:                 simple_expression
                             ;
 
 simple_expression:          term 
-                            | SIGN term
-                            | simple_expression SIGN term
+                            | SIGN term 
+                            | simple_expression SIGN term 
+                            {
+                                if($2 == '+'){
+                                    emiter << "add.i " + symboltable[$1].value + ',' + symboltable[$3].value + ',' + "$t0";
+                                }
+                            }
                             | simple_expression OR term
                             ;
                             
-term:                       factor
+term:                       factor {$$ = $1;}
                             | term MULOP factor
                             ;
                         
 factor:                     variable
                             | ID '(' expression_list ')'
-                            | NUM
+                            | NUM {$$ = $1;}
                             | '(' expression ')'
                             | NOT factor
                             ;
@@ -137,7 +148,7 @@ factor:                     variable
 %%
 
 void yyerror(const char* s){
-    printer("Error occured!");
+    log("Error occured!");
 }
 		 
 
