@@ -4,6 +4,8 @@
     using namespace std;
     
 	SymbolTableManager& symbolTable = SymbolTableManager::getInstance();
+	bool allowIdSymbols = true;
+	
 	unsigned int lineNumber = 0;
 	unsigned int charNumber = 0;
 %}
@@ -31,12 +33,11 @@ assignop    :=
 {delimiter}     {charNumber++; }
 \n              {lineNumber++; charNumber = 0;}
 {integer}       { 
-                    yylval = symbolTable.lookUpPush(NUM, yytext, SymbolTableManager::Type::INTEGER);
+                    yylval = symbolTable.lookUpPush(NUM, yytext, INTEGER);
                     return NUM; 
                 }
 {num}           { 
-                    yylval = symbolTable.lookUpPush(NUM, yytext,
-                    SymbolTableManager::Type::REAL); 
+                    yylval = symbolTable.lookUpPush(NUM, yytext, REAL); 
                     return NUM; 
                 }
 
@@ -62,7 +63,7 @@ integer         { return INTEGER; }
 real            { return REAL; }
 function        { return FUNCTION; }
 procedure       { return PROCEDURE; }
-begin           { return BEGIN_TOKEN; }
+begin           { allowIdSymbols = false; return BEGIN_TOKEN; }
 end             { return END; }
 
 or              { return OR; }
@@ -74,7 +75,8 @@ do              { return DO; }
 while           { return WHILE; }
 
 {id}            { 
-                    yylval = symbolTable.lookUpPush(ID, yytext);
+                    if(allowIdSymbols)
+                        yylval = symbolTable.lookUpPush(ID, yytext);
                     return ID;
                 }
 

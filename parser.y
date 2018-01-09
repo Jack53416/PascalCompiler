@@ -1,13 +1,16 @@
 %{
 	#include "global.hpp"
 	#include <iostream>
+	#include <vector>
 	using namespace std;
 	
 	SymbolTableManager& symboltable = SymbolTableManager::getInstance();
     
 	void yyerror(const char* s);
-	Emitter emiter("binary.asm");
+	Emitter emitter("binary.asm");
 	logger log;
+	vector<int> indentifierListVect;
+
 %}
 
 %token PROGRAM
@@ -38,29 +41,44 @@
 %%
 
 program:                    PROGRAM ID '(' identifier_list ')' ';'
-                            {emiter << "jump.i #lab0:" << "lab0:";}
+                            {emitter << emitter.getLabel(); indentifierListVect.clear();}
                             declarations
                             subprogram_declarations
                             compound_statement '.'
+                            { cout << symboltable;}
                             ;
 
 
 identifier_list:            ID
+                            {
+                                indentifierListVect.push_back($1);
+                            }
                             | identifier_list ',' ID
+                            {
+                                indentifierListVect.push_back($3);
+                            }
                             ;
 
 
 declarations:               declarations VAR identifier_list ':' type ';'
+                            {
+                                for(int id : indentifierListVect){
+                                    symboltable[id].token = VAR;
+                                    symboltable[id].type = $5;
+                                    symboltable.assignFreeAddress(symboltable[id]);
+                                }
+                                indentifierListVect.clear();
+                            }
                             |
                             ;
 
 
-type:                       standard_type
+type:                       standard_type {$$ = $1;}
                             | ARRAY '[' NUM ".." NUM ']' OF standard_type
                             ;
 
-standard_type:              INTEGER
-                            | REAL
+standard_type:              INTEGER {$$ = INTEGER;}
+                            | REAL {$$ = REAL;}
                             ;
 
 subprogram_declarations:    subprogram_declarations subprogram_declaration ';'
@@ -106,7 +124,7 @@ statement:                  variable ASSIGNOP expression
                             ;
 
 
-variable:                   ID
+variable:                   ID 
                             | ID '[' expression ']'
                             ;
 
@@ -127,9 +145,9 @@ simple_expression:          term
                             | SIGN term 
                             | simple_expression SIGN term 
                             {
-                                if($2 == '+'){
-                                    emiter << "add.i " + symboltable[$1].value + ',' + symboltable[$3].value + ',' + "$t0";
-                                }
+                               /* if($2 == '+'){
+                                    emitter << "add.i " + to_string(symboltable[$1].address) + ',' + to_string(symboltable[$3].address) + ',' + "$t0";
+                                }*/
                             }
                             | simple_expression OR term
                             ;
@@ -150,5 +168,5 @@ factor:                     variable
 void yyerror(const char* s){
     log("Error occured!");
 }
-		 
+	 
 

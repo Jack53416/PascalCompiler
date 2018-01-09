@@ -23,6 +23,7 @@ void SymbolTableManager::push(int tokenCode, string tokenVal)
 	this->symbolTable.push_back(symbol);
 }
 
+
 SymbolTableManager::Symbol& SymbolTableManager::operator[](unsigned int position)
 {
 	return symbolTable.at(position);
@@ -39,7 +40,7 @@ int SymbolTableManager::lookUpPush(int tokenCode, string tokenVal)
 	return symbolTable.size() - 1;
 }
 
-int SymbolTableManager::lookUpPush(int tokenCode, string tokenVal, Type tokenType)
+int SymbolTableManager::lookUpPush(int tokenCode, string tokenVal, int tokenType)
 {
     Symbol symbol(tokenCode, tokenVal, tokenType);
 	int idx = lookUp(symbol);
@@ -58,4 +59,34 @@ int SymbolTableManager::lookUp(const Symbol& symbol) const
 		return it - symbolTable.begin();
 	}
 	return -1;
+}
+
+ostream & operator<<(ostream & output, SymbolTableManager & sm)
+{
+    int idx = 0;
+	for (SymbolTableManager::Symbol& symbol : sm.symbolTable) {
+		 output << idx << "\t" << symbol << endl;
+         idx ++;
+	}
+	return output;
+}
+
+const char * SymbolTableManager::tokenToString(int token)
+{
+    switch(token){
+        case ID:
+            return "Id";
+        case VAR:
+            return "var";
+        case INTEGER:
+            return "integer";
+        case REAL:
+            return "real";
+        case FUNCTION:
+            return "function";
+        case PROCEDURE:
+            return "procedure";
+        default:
+            return "unknown";
+    }
 }
