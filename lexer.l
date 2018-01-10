@@ -59,8 +59,14 @@ program         { return PROGRAM; }
 var             { return VAR;  }
 array           { return ARRAY; }
 of              { return OF; }
-integer         { return INTEGER; }
-real            { return REAL; }
+integer         {
+                    yylval = INTEGER;
+                    return INTEGER; 
+                }
+real            {
+                    yylval = REAL;
+                    return REAL; 
+                }
 function        { return FUNCTION; }
 procedure       { return PROCEDURE; }
 begin           { allowIdSymbols = false; return BEGIN_TOKEN; }
@@ -75,7 +81,7 @@ do              { return DO; }
 while           { return WHILE; }
 
 {id}            { 
-                    if(allowIdSymbols)
+                    
                         yylval = symbolTable.lookUpPush(ID, yytext);
                     return ID;
                 }

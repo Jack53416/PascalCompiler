@@ -11,19 +11,26 @@ class SymbolTableManager
 {
 public:
     static const int UNDEFINED = numeric_limits<int>::max(); 
+    static const int intSize = 4;
+    static const int floatSize = 8;
 	struct Symbol {
 		int token;
 		string value;
 		int type;
         int address;
-		
+		Symbol(){}
 		Symbol(int tokenCode, string tokenVal, int tokenType)
 			: token(tokenCode), value(tokenVal), type(tokenType), address(UNDEFINED) {}
 		~Symbol() {
 			this->value.clear();
 		}
+		string getCodeformat(){
+            if(token == NUM)
+                return "#" + value;
+            return to_string(address);
+        }
 		bool operator == (const Symbol& other)const {
-			bool tokenComparison = other.token == this->token;
+			bool tokenComparison = other.token == this->token || other.token == ID;
 			bool valueComparison = other.value.compare(this->value) == 0;
 			bool typeComparison = other.type == this->type || other.type == UNDEFINED;
 			if (tokenComparison && valueComparison && typeComparison) {
@@ -44,9 +51,16 @@ public:
             
 		};
 	};
+    
+    struct tempVarManager{
+        int tmpVariableCount = 0;
+        string operator()(){
+            int currentIdx = tmpVariableCount;
+            tmpVariableCount++;
+            return "$t" + to_string(currentIdx);
+        }
+    };
     struct AddressGiver{
-        const int intSize = 4;
-        const int floatSize = 8;
         int stackSize = 0;
         void operator () (Symbol& symbol){
             int freeAddress = stackSize;
@@ -66,14 +80,16 @@ private:
 	SymbolTableManager();
 	SymbolTableManager(SymbolTableManager& );
 	void operator = (SymbolTableManager& );
+    tempVarManager getTempValue;
 public:
 	static SymbolTableManager& getInstance();
-    static const char* tokenToString(int token);
+    static string tokenToString(int token);
 	~SymbolTableManager();
 	void push(int tokenCode, string tokenVal);
 	int lookUpPush(int tokenCode, string tokenVal);
     int lookUpPush(int tokenCode, string tokenVal, int tokenType);
 	int lookUp(const Symbol& symbol) const;
+    int pushTempVar(int type);
 	Symbol& operator [] (unsigned int);
     friend ostream& operator << (ostream& stream, SymbolTableManager& symbolTableManager);
     AddressGiver assignFreeAddress;

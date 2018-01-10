@@ -71,13 +71,15 @@ ostream & operator<<(ostream & output, SymbolTableManager & sm)
 	return output;
 }
 
-const char * SymbolTableManager::tokenToString(int token)
+string SymbolTableManager::tokenToString(int token)
 {
     switch(token){
         case ID:
             return "Id";
         case VAR:
             return "var";
+        case NUM:
+            return "number";
         case INTEGER:
             return "integer";
         case REAL:
@@ -89,4 +91,18 @@ const char * SymbolTableManager::tokenToString(int token)
         default:
             return "unknown";
     }
+}
+
+int SymbolTableManager::pushTempVar(int type){
+    Symbol symbol;
+    if(type != INTEGER && type != REAL){
+        throw std::invalid_argument(SymbolTableManager::tokenToString(type) + "is invalid type of temp variable!");
+    }
+    symbol.token = VAR;
+    symbol.value = getTempValue();
+    symbol.type = type;
+    assignFreeAddress(symbol);
+    symbolTable.push_back(symbol);
+    return symbolTable.size() - 1;
+    
 }
