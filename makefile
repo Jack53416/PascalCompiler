@@ -1,4 +1,4 @@
-objects = lexer.o parser.o SymbolTableManager.o Emitter.o main.o
+objects = lexer.o parser.o Symbol.o SymbolTableManager.o Emitter.o main.o
 cc = g++
 flags = -pedantic -Wall -Wredundant-decls -Wmissing-declarations -flto -Wodr
 
@@ -14,19 +14,25 @@ main.o: main.cpp global.hpp
 parser.o: parser.cpp parser.hpp
 	$(cc) -g -c -o parser.o parser.cpp
 
-global.hpp: parser.hpp SymbolTableManager.h Emitter.h
+global.hpp: parser.hpp SymbolTableManager.h Emitter.h Symbol.h
 
 Emitter.o: Emitter.cpp Emitter.h
-	$(cc) -g -c -o Emitter.o Emitter.cpp
+	$(cc) $(flags) -g -c -o Emitter.o Emitter.cpp
 
-SymbolTableManager.o: SymbolTableManager.cpp SymbolTableManager.h
-	$(cc) -g -c -o SymbolTableManager.o SymbolTableManager.cpp
+SymbolTableManager.o: SymbolTableManager.cpp SymbolTableManager.h Symbol.h
+	$(cc) $(flags) -g -c -o SymbolTableManager.o SymbolTableManager.cpp
+	
+Symbol.o: Symbol.cpp Symbol.h parser.hpp
+	$(cc) $(flags) -g -c -o Symbol.o Symbol.cpp
 
 parser.cpp parser.hpp: parser.y
 	bison -d -o parser.cpp parser.y
 
 lexer.cpp: lexer.l
 	flex -o lexer.cpp lexer.l
+
+
+
 
 .PHONY: clean
 

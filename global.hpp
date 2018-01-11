@@ -1,11 +1,10 @@
-#ifndef GLOBAL_H
-#define GLOBAL_H
+#pragma once
 
 #include <iostream>
 #include "parser.hpp"
 #include "SymbolTableManager.h"
 #include "Emitter.h"
-
+#include "Symbol.h"
 using namespace std;
 
 struct logger{
@@ -17,4 +16,4 @@ extern unsigned int lineNumber;
 int yylex();
 
 
-#endif 
+

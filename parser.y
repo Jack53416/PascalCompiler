@@ -2,12 +2,11 @@
 	#include "global.hpp"
 	#include <iostream>
 	#include <vector>
+	#include <cstdarg>
 	using namespace std;
 	
 	SymbolTableManager& symboltable = SymbolTableManager::getInstance();
-    void genCode(const string& opCode, SymbolTableManager::Symbol& v1, SymbolTableManager::Symbol& v2, SymbolTableManager::Symbol& result);
-    void genCode(const string& opCode, SymbolTableManager::Symbol& v1, SymbolTableManager::Symbol& result);
-    void genCode(const string& opCode, SymbolTableManager::Symbol& result);
+    void genCode(const string& opCode, const Symbol& result, int argCount, ...);
     int cast(int varIdx, int newType);
     int checkTypes(int& var1, int& var2);
     
@@ -134,7 +133,7 @@ statement:                  variable ASSIGNOP expression
                                 if(symboltable[$3].type != symboltable[$1].type){
                                     $3 = cast($3, symboltable[$1].type);
                                 }
-                                genCode("mov",symboltable[$3], symboltable[$1]);
+                                genCode("mov",symboltable[$1], 1, symboltable[$3]);
                             }
                             | procedure_statement
                             | compound_statement
@@ -154,12 +153,12 @@ procedure_statement:        ID
                                 if(symboltable[$1].value.compare("write") == 0){
                                     
                                     for(int& param : parameterListVect){
-                                        genCode("write", symboltable[param]);
+                                        genCode("write", symboltable[param], 0);
                                     }
                                 }
                                 if(symboltable[$1].value.compare("read") == 0){
                                     for(int& param : parameterListVect){
-                                        genCode("read", symboltable[param]);
+                                        genCode("read", symboltable[param], 0);
                                     }
                                 }
                                 parameterListVect.clear();
@@ -187,10 +186,10 @@ simple_expression:          term
 
                                 $$ = checkTypes($1, $3);
                                 if($2 == '+'){
-                                    genCode("add", symboltable[$1], symboltable[$3], symboltable[$$]);
+                                    genCode("add",symboltable[$$], 2 , symboltable[$1], symboltable[$3]);
                                 }
                                 else{
-                                    genCode("sub", symboltable[$1], symboltable[$3], symboltable[$$]);
+                                    genCode("sub",symboltable[$$], 2 , symboltable[$1], symboltable[$3]);
                                 }
                             }
                             | simple_expression OR term     
@@ -201,10 +200,10 @@ term:                       factor
                             {
                                 $$ = checkTypes($1, $3);
                                 if($2 == '*'){
-                                    genCode("mul", symboltable[$1], symboltable[$3], symboltable[$$]);
+                                    genCode("mul",symboltable[$$], 2 , symboltable[$1], symboltable[$3]);
                                 }
                                 else{
-                                    genCode("div", symboltable[$1], symboltable[$3], symboltable[$$]);
+                                    genCode("div",symboltable[$$], 2 , symboltable[$1], symboltable[$3]);
                                 }
                             }
                             ;
@@ -258,46 +257,26 @@ int cast(int varIdx, int newType){
     return varIdx;
 }
 
-void genCode(const string& opCode, SymbolTableManager::Symbol& result){
-    stringstream output;
-    output << '\t' << opCode << '.';
-    
-    if(result.type == REAL)
-        output << 'r';
-    else
-        output << 'i';
-    
-    output << ' ' << result.getCodeformat();
-    emitter << output.str();
-}
+void genCode(const string& opCode, const Symbol& result, int argCount, ...) {
+	va_list symbols;
+	va_start(symbols, argCount);
+	stringstream output;
+	output << '\t' << opCode << '.';
 
+	if (result.type == REAL)
+		output << 'r';
+	else
+		output << 'i';
 
-void genCode(const string& opCode, SymbolTableManager::Symbol& v1, SymbolTableManager::Symbol& result){
-    stringstream output;
-    output << '\t' << opCode << '.';
-    
-    if(result.type == REAL)
-        output << 'r';
-    else
-        output << 'i';
-    
-    output << ' ' << v1.getCodeformat() << ',' << result.getCodeformat();
-    emitter << output.str();
-}
+	output << ' ';
 
-void genCode(const string& opCode, SymbolTableManager::Symbol& v1, SymbolTableManager::Symbol& v2, SymbolTableManager::Symbol& result){
-    
-    stringstream output;
-    output << '\t' << opCode << '.';
-    
-    if(result.type == REAL)
-        output << 'r';
-    else
-        output << 'i';
-    
-    
-    output << ' ' << v1.getCodeformat() << ',' << v2.getCodeformat() << ',' << result.getCodeformat();
-    emitter << output.str();
+	for (int i = 0; i < argCount; i++) {
+		output << va_arg(symbols, Symbol).getCodeformat() << ',';
+	}
+	output << result.getCodeformat();
+	
+	
+	emitter << output.str();
+
 }
-	 
 
