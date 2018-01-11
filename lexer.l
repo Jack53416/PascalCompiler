@@ -81,8 +81,10 @@ do              { return DO; }
 while           { return WHILE; }
 
 {id}            { 
-                    
+                    if(allowIdSymbols)
                         yylval = symbolTable.lookUpPush(ID, yytext);
+                    else
+                        yylval = symbolTable.lookUp(yytext);
                     return ID;
                 }
 

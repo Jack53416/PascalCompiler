@@ -7,6 +7,7 @@
 	SymbolTableManager& symboltable = SymbolTableManager::getInstance();
     void genCode(const string& opCode, SymbolTableManager::Symbol& v1, SymbolTableManager::Symbol& v2, SymbolTableManager::Symbol& result);
     void genCode(const string& opCode, SymbolTableManager::Symbol& v1, SymbolTableManager::Symbol& result);
+    void genCode(const string& opCode, SymbolTableManager::Symbol& result);
     int cast(int varIdx, int newType);
     int checkTypes(int& var1, int& var2);
     
@@ -14,6 +15,7 @@
 	Emitter emitter("binary.asm");
 	logger log;
 	vector<int> indentifierListVect;
+	vector<int> parameterListVect;
 
 %}
 
@@ -52,7 +54,7 @@ program:                    PROGRAM ID '(' identifier_list ')' ';'
                             declarations
                             subprogram_declarations
                             compound_statement '.'
-                            { cout << symboltable; emitter <<"\twrite.r 8" << "\texit";}
+                            { cout << symboltable; emitter <<"\texit";}
                             ;
 
 
@@ -129,7 +131,7 @@ statement:                  variable ASSIGNOP expression
                                     yyerror("Assigning real type to integer!");
                                 }
                                 
-                                if(symboltable[$3].token == VAR && symboltable[$3].type != symboltable[$1].type){
+                                if(symboltable[$3].type != symboltable[$1].type){
                                     $3 = cast($3, symboltable[$1].type);
                                 }
                                 genCode("mov",symboltable[$3], symboltable[$1]);
@@ -148,10 +150,30 @@ variable:                   ID
 
 procedure_statement:        ID
                             | ID '(' expression_list ')'
+                            {
+                                if(symboltable[$1].value.compare("write") == 0){
+                                    
+                                    for(int& param : parameterListVect){
+                                        genCode("write", symboltable[param]);
+                                    }
+                                }
+                                if(symboltable[$1].value.compare("read") == 0){
+                                    for(int& param : parameterListVect){
+                                        genCode("read", symboltable[param]);
+                                    }
+                                }
+                                parameterListVect.clear();
+                            }
                             ;
 
 expression_list:            expression
+                            {
+                                parameterListVect.push_back($1);
+                            }
                             | expression_list ',' expression
+                            {
+                                parameterListVect.push_back($3);
+                            }
                             ;
 
 expression:                 simple_expression
@@ -197,7 +219,8 @@ factor:                     variable
 %%
 
 void yyerror(const char* s){
-    log(s);
+
+    cout<< "\033[1;31mError in lnie: " << lineNumber << "\033[0m\t" << s<<endl;
 }
 
 #include <sstream>
@@ -225,15 +248,29 @@ int cast(int varIdx, int newType){
     else
         convOpCode = "\tinttoreal.i";
 
-    if(symboltable[varIdx].token == VAR){
+    if(symboltable[varIdx].token == VAR || (symboltable[varIdx].token == NUM && newType == INTEGER)){
         tmpIdx = symboltable.pushTempVar(newType);
-        output << convOpCode << ' ' << symboltable[varIdx].address << ',' << symboltable[tmpIdx].address;
+        output << convOpCode << ' ' << symboltable[varIdx].getCodeformat() << ',' << symboltable[tmpIdx].getCodeformat();
         emitter << output.str();
         return tmpIdx;
     }
     
     return varIdx;
 }
+
+void genCode(const string& opCode, SymbolTableManager::Symbol& result){
+    stringstream output;
+    output << '\t' << opCode << '.';
+    
+    if(result.type == REAL)
+        output << 'r';
+    else
+        output << 'i';
+    
+    output << ' ' << result.getCodeformat();
+    emitter << output.str();
+}
+
 
 void genCode(const string& opCode, SymbolTableManager::Symbol& v1, SymbolTableManager::Symbol& result){
     stringstream output;

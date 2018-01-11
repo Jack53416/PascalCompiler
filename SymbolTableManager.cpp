@@ -61,6 +61,12 @@ int SymbolTableManager::lookUp(const Symbol& symbol) const
 	return -1;
 }
 
+int SymbolTableManager::lookUp(const string& value) const
+{
+    Symbol symbol(ID, value, UNDEFINED);
+    return lookUp(symbol);
+}
+
 ostream & operator<<(ostream & output, SymbolTableManager & sm)
 {
     int idx = 0;

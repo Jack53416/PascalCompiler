@@ -89,6 +89,7 @@ public:
 	int lookUpPush(int tokenCode, string tokenVal);
     int lookUpPush(int tokenCode, string tokenVal, int tokenType);
 	int lookUp(const Symbol& symbol) const;
+    int lookUp(const string& value) const;
     int pushTempVar(int type);
 	Symbol& operator [] (unsigned int);
     friend ostream& operator << (ostream& stream, SymbolTableManager& symbolTableManager);

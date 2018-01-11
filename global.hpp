@@ -13,7 +13,7 @@ struct logger{
         cout << cString << endl;
     }
 };
-extern int yyparse();
+extern unsigned int lineNumber;
 int yylex();
 
 
