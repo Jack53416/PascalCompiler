@@ -11,7 +11,7 @@ lexer.o: lexer.cpp global.hpp
 main.o: main.cpp global.hpp
 	$(cc) $(flags) -g -c -o main.o main.cpp
 
-parser.o: parser.cpp parser.hpp
+parser.o: parser.cpp parser.hpp global.hpp
 	$(cc) -g -c -o parser.o parser.cpp
 
 global.hpp: parser.hpp SymbolTableManager.h Emitter.h Symbol.h

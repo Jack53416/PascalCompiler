@@ -13,6 +13,7 @@ struct logger{
     }
 };
 extern unsigned int lineNumber;
+extern bool allowIdSymbols;
 int yylex();
 
 

@@ -47,11 +47,14 @@
 
 program:                    PROGRAM ID '(' identifier_list ')' ';'
                             {
-                                emitter << "\tjump.i #lab0" << emitter.getLabel() + ":"; 
+                                emitter << "\tjump.i #lab0";
                                 indentifierListVect.clear();
                             }
                             declarations
                             subprogram_declarations
+                            {
+                              emitter << emitter.getLabel() + ":"; 
+                            }
                             compound_statement '.'
                             { cout << symboltable; emitter <<"\texit";}
                             ;
@@ -73,7 +76,7 @@ declarations:               declarations VAR identifier_list ':' type ';'
                                 for(int id : indentifierListVect){
                                     symboltable[id].token = VAR;
                                     symboltable[id].type = $5;
-                                    symboltable.assignFreeAddress(symboltable[id]);
+                                    symboltable.assignFreeAddress(symboltable[id], false);
                                 }
                                 indentifierListVect.clear();
                             }
@@ -94,11 +97,47 @@ subprogram_declarations:    subprogram_declarations subprogram_declaration ';'
                             ;
 
 subprogram_declaration:     subprogram_head declarations compound_statement
+                            {
+                    
+                                emitter << "\tleave" << "\treturn";
+                                emitter.switchTarget(Emitter::TargetType::FILE);
+                                emitter << "\tenter.i #" + to_string(symboltable.getStackSize());
+                                emitter.putBufferIntoFile();
+                                allowIdSymbols = true;
+                                symboltable.setGlobalScope();
+                            }
                             ;
 
                         
-subprogram_head:            FUNCTION ID arguments ':' standard_type ';'
-                            | PROCEDURE ID arguments ';'
+subprogram_head:            FUNCTION ID 
+                            {
+                                Symbol symbol = symboltable[$2];
+                                symboltable[$2].token = FUNCTION;
+                                emitter<< symboltable[$2].value + ":";
+                                 
+                                symboltable.setLocalScope();
+                                symbol.token = VAR;
+                                symbol.isReference = true;
+                                symboltable.assignFreeAddress(symbol, true);
+                                symboltable.push(symbol);
+                               
+                                emitter.switchTarget(Emitter::TargetType::BUFFER);
+                            } 
+                            arguments ':' standard_type ';'
+                            {
+                                symboltable.setGlobalScope();
+                                symboltable[$2].type = $5;
+                                symboltable[$2].argumentTypes = parameterListVect; 
+                                parameterListVect.clear();
+                                symboltable.setLocalScope();
+                                symboltable[0].type = $5;
+                            }
+                            | PROCEDURE ID 
+                            {
+                                symboltable[$2].token = PROCEDURE;
+                                symboltable.setLocalScope();
+                            } 
+                            arguments ';'
                             ;
 
 
@@ -108,10 +147,33 @@ arguments:                  '(' parameter_list ')'
 
 
 parameter_list:              identifier_list ':' type
+                            {
+                                for(int id : indentifierListVect){
+                                    symboltable[id].token = VAR;
+                                    symboltable[id].isReference = true;
+                                    symboltable[id].type = $3;
+                                    symboltable.assignFreeAddress(symboltable[id], true);
+                                    
+                                    parameterListVect.push_back($3);
+                                }
+                                indentifierListVect.clear();
+                            }
                             | parameter_list ';' identifier_list ':' type
+                            {
+                                for(int id : indentifierListVect){
+                                    symboltable[id].token = VAR;
+                                    symboltable[id].isReference = true;
+                                    symboltable[id].type = $5;
+                                    symboltable.assignFreeAddress(symboltable[id], true);
+                                    
+                                    parameterListVect.push_back($5);
+                                }
+                                indentifierListVect.clear();
+                            }
                             ;
 
 compound_statement:         BEGIN_TOKEN optional_statements END
+
                             ;
 
 optional_statements:        statement_list

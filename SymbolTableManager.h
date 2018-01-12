@@ -4,22 +4,22 @@
 #include <algorithm>
 #include <string>
 #include <limits>
+#include <cmath>
 #include <iostream>
 using namespace std;
 
 class SymbolTableManager
 {
 public:
-	static const int intSize = 4;
-	static const int floatSize = 8;
-
 	struct TempVarManager {
 		int tmpVariableCount = 0;
 		string operator()();
 	};
 	struct AddressAssigner {
 		int stackSize = 0;
-		void operator () (Symbol& symbol);
+        int argumentStack = 0; 
+        bool isGlobal = false;
+		void operator () (Symbol& symbol, bool isArgument);
 	};
 
 	struct SymbolTable {
@@ -40,15 +40,19 @@ private:
 public:
 	static SymbolTableManager& getInstance();
 	~SymbolTableManager();
+    void push(const Symbol& symbol);
 	void push(int tokenCode, string tokenVal);
 	int lookUpPush(int tokenCode, string tokenVal);
 	int lookUpPush(int tokenCode, string tokenVal, int tokenType);
 	int lookUp(const Symbol& symbol) const;
 	int lookUp(const string& value) const;
 	int pushTempVar(int type);
+    void setLocalScope();
+    void setGlobalScope();
+    int getStackSize();
 	Symbol& operator [] (unsigned int);
 	friend ostream& operator << (ostream& stream, SymbolTableManager& symbolTableManager);
-	AddressAssigner assignFreeAddress;
+	void assignFreeAddress(Symbol& symbol, bool isArgument);
 
 };
 

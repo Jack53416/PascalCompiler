@@ -3,6 +3,8 @@
 SymbolTableManager::SymbolTableManager()
 {
 	currentTable = &globalTable;
+    globalTable.assignAddress.isGlobal = true;
+    localTable.assignAddress.argumentStack = 8;
 }
 
 
@@ -16,6 +18,11 @@ SymbolTableManager::~SymbolTableManager()
 {
 	globalTable.symbols.clear();
 	localTable.symbols.clear();
+}
+
+void SymbolTableManager::push(const Symbol& symbol)
+{
+    currentTable->symbols.push_back(symbol);
 }
 
 void SymbolTableManager::push(int tokenCode, string tokenVal)
@@ -79,6 +86,7 @@ ostream & operator<<(ostream & output, SymbolTableManager & sm)
 	
 	if (sm.localTable.symbols.size() > 0) {
 		output << "Local Table:" << endl;
+        idx = 0;
 		for (Symbol& symbol : sm.localTable.symbols) {
 			output << idx << "\t" << symbol << endl;
 			idx++;
@@ -95,22 +103,52 @@ int SymbolTableManager::pushTempVar(int type) {
 	symbol.token = VAR;
 	symbol.value = currentTable->createTempVariable();
 	symbol.type = type;
-	assignFreeAddress(symbol);
+	assignFreeAddress(symbol, false);
 	currentTable->symbols.push_back(symbol);
 	return currentTable->symbols.size() - 1;
 }
 
-void SymbolTableManager::AddressAssigner::operator()(Symbol & symbol)
+void SymbolTableManager::setLocalScope()
 {
-	int freeAddress = stackSize;
-	if (symbol.type == Symbol::UNDEFINED) {
+    currentTable = &localTable;
+}
+
+void SymbolTableManager::setGlobalScope()
+{
+    currentTable = &globalTable;
+}
+
+int SymbolTableManager::getStackSize()
+{
+    return abs(currentTable->assignAddress.stackSize);
+}
+
+void SymbolTableManager::assignFreeAddress(Symbol& symbol, bool isArgument)
+{
+    currentTable->assignAddress(symbol, isArgument);
+}
+
+void SymbolTableManager::AddressAssigner::operator()(Symbol & symbol, bool isArgument)
+{
+	if (symbol.type == Symbol::UNDEFINED && symbol.isReference == false) {
 		throw std::invalid_argument("Symbol type is undefined! address can't be assigned!");
 	}
-	if (symbol.type == REAL)
-		stackSize += floatSize;
-	else
-		stackSize += intSize;
-	symbol.address = freeAddress;
+	if (symbol.address != Symbol::UNDEFINED){
+        return;
+    }
+    if(isGlobal){
+        symbol.address = stackSize;
+        stackSize += symbol.getSize();
+        return;
+        
+    }
+    if(isArgument){
+        symbol.address = argumentStack;
+        argumentStack += symbol.getSize();
+        return;
+    }
+    stackSize -= symbol.getSize();
+    symbol.address = stackSize;
 }
 
 string SymbolTableManager::TempVarManager::operator()()
