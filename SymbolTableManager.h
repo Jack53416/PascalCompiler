@@ -26,6 +26,7 @@ public:
 		vector<Symbol> symbols;
 		AddressAssigner assignAddress;
 		TempVarManager createTempVariable;
+        void reset();
 	};
 
 private:
@@ -49,7 +50,9 @@ public:
 	int pushTempVar(int type);
     void setLocalScope();
     void setGlobalScope();
+    void clearScope();
     int getStackSize();
+    bool isInGlobalScope();
 	Symbol& operator [] (unsigned int);
 	friend ostream& operator << (ostream& stream, SymbolTableManager& symbolTableManager);
 	void assignFreeAddress(Symbol& symbol, bool isArgument);

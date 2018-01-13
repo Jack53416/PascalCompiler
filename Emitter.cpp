@@ -22,6 +22,7 @@ void Emitter::switchTarget(TargetType target)
 void Emitter::putBufferIntoFile()
 {
 	file << buffer.rdbuf();
+    buffer.str(std::string());
 }
 
 Emitter & Emitter::operator<<(const string & value)

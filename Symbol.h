@@ -24,7 +24,7 @@ public:
 	Symbol(int tokenCode, string tokenVal, int tokenType);
 	~Symbol();
     int getSize() const;
-	string getCodeformat() const;
+	string getCodeformat(bool isGlobal) const;
 	bool operator == (const Symbol& other)const;
 	friend ostream & operator << (ostream & stream, Symbol & symbol);
 

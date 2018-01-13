@@ -1,4 +1,5 @@
 #include "Symbol.h"
+#include <sstream>
 
 
 Symbol::Symbol()
@@ -17,11 +18,28 @@ Symbol::~Symbol()
 	this->value.clear();
 }
 
-string Symbol::getCodeformat() const
+string Symbol::getCodeformat(bool isGlobal) const
 {
-	if (token == NUM)
-		return "#" + value;
-	return to_string(address);
+    stringstream output;
+    
+	if (token == NUM){
+        output << '#' << value;
+        return output.str();
+    }
+    
+    if(isReference)
+        output << '*';
+    if(!isGlobal){
+        output << "BP";
+        if(address > 0){
+            output << '+';
+        }
+    }
+        
+    
+    
+    output << address;
+	return output.str();
 }
 
 int Symbol::getSize() const
@@ -38,16 +56,16 @@ bool Symbol::operator==(const Symbol & other) const
 	bool tokenComparison = other.token == this->token || other.token == ID;
 	bool valueComparison = other.value.compare(this->value) == 0;
 	bool typeComparison = other.type == this->type || other.type == UNDEFINED;
-    bool referenceComparison = other.isReference == this->isReference;
+    bool referenceComparison = other.isReference == this->isReference || other.token == ID;
     bool argumentsComparison = true;
     
-    if(other.argumentTypes.size() != this->argumentTypes.size())
+    /*if(other.argumentTypes.size() != this->argumentTypes.size())
     {
         return false;
     }
     else{
         argumentsComparison = std::equal(other.argumentTypes.begin(), other.argumentTypes.end(), this->argumentTypes.begin());
-    }
+    }*/
     
 	if (tokenComparison && valueComparison && typeComparison && referenceComparison && argumentsComparison) {
 		return true;

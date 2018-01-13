@@ -118,14 +118,34 @@ void SymbolTableManager::setGlobalScope()
     currentTable = &globalTable;
 }
 
+void SymbolTableManager::clearScope()
+{
+  currentTable->reset();  
+}
+
 int SymbolTableManager::getStackSize()
 {
     return abs(currentTable->assignAddress.stackSize);
 }
 
+bool SymbolTableManager::isInGlobalScope(){
+    return currentTable->assignAddress.isGlobal;
+}
 void SymbolTableManager::assignFreeAddress(Symbol& symbol, bool isArgument)
 {
     currentTable->assignAddress(symbol, isArgument);
+}
+
+void SymbolTableManager::SymbolTable::reset()
+{
+    symbols.clear();
+    assignAddress.stackSize = 0;
+    createTempVariable.tmpVariableCount = 0;
+    
+    if(assignAddress.isGlobal)
+        assignAddress.argumentStack = 8;
+        
+    
 }
 
 void SymbolTableManager::AddressAssigner::operator()(Symbol & symbol, bool isArgument)
