@@ -8,20 +8,20 @@
 	
 	SymbolTableManager& symboltable = SymbolTableManager::getInstance();
     void genCode(const string& opCode, const Symbol& result, int argCount, ...);
-    int cast(int varIdx, int newType);
-    int checkTypes(int& var1, int& var2);
-    bool checkIfUndecalred(int argCount, ...);
+    YYSTYPE cast(YYSTYPE varIdx, int newType);
+    YYSTYPE checkTypes(YYSTYPE& var1,YYSTYPE& var2);
+    bool checkIfUndecalred(unsigned int argCount, ...);
     
-    void handleSubprogramCall(int programId, int& resultId, vector<int> &arguments);
-    void pushFunctionParams(int functionId, vector<int> &arguments);
+    void handleSubprogramCall(YYSTYPE programId, YYSTYPE & resultId, vector<YYSTYPE> &arguments);
+    void pushFunctionParams(YYSTYPE functionId, vector<YYSTYPE> &arguments);
     
 	void yyerror(const string & s);
 	Emitter emitter("binary.asm");
-	vector<int> indentifierListVect;
-	vector<int> parameterListVect;
+	vector<YYSTYPE> indentifierListVect;
+	vector<YYSTYPE> parameterListVect;
 
 %}
-%define api.value.type {int}
+%define api.value.type {long unsigned int}
 %token PROGRAM
 %token ID
 %token VAR
@@ -77,7 +77,7 @@ identifier_list:            ID
 
 declarations:               declarations VAR identifier_list ':' type ';'
                             {
-                                for(int id : indentifierListVect){
+                                for(auto id : indentifierListVect){
                                     symboltable[id].token = VAR;
                                     symboltable[id].type = $5;
                                     symboltable.assignFreeAddress(symboltable[id], false);
@@ -109,8 +109,8 @@ subprogram_declaration:     subprogram_head declarations compound_statement
                                 emitter.putBufferIntoFile();
                                 allowIdSymbols = true;
                                 
-                                cout << symboltable;
-                                symboltable.clearScope();
+                                //cout << symboltable;
+                                cout << symboltable.clearScope();
                                 symboltable.setGlobalScope();
                             }
                             ;
@@ -140,12 +140,13 @@ subprogram_head:            FUNCTION ID
                             arguments ':' standard_type ';'
                             {
                                 symboltable.setGlobalScope();
-        
+                                string funName = symboltable[$2].value;
+                                
                                 symboltable[$2].type = $7;
                                 symboltable[$2].argumentTypes = parameterListVect; 
                                 parameterListVect.clear();
                                 symboltable.setLocalScope();
-                                symboltable[0].type = $7;
+                                symboltable[symboltable.lookUp(funName)].type = $7;
                             }
                             | PROCEDURE ID 
                             {
@@ -173,7 +174,7 @@ arguments:                  '(' parameter_list ')'
 
 parameter_list:              identifier_list ':' type
                             {
-                                for(int id : indentifierListVect){
+                                for(auto id : indentifierListVect){
                                     symboltable[id].token = VAR;
                                     symboltable[id].isReference = true;
                                     symboltable[id].type = $3;
@@ -185,7 +186,7 @@ parameter_list:              identifier_list ':' type
                             }
                             | parameter_list ';' identifier_list ':' type
                             {
-                                for(int id : indentifierListVect){
+                                for(auto id : indentifierListVect){
                                     symboltable[id].token = VAR;
                                     symboltable[id].isReference = true;
                                     symboltable[id].type = $5;
@@ -282,13 +283,13 @@ procedure_statement:        ID
                                 
                                 if(symboltable[$1].value.compare("write") == 0 ){
                                     
-                                    for(int& param : parameterListVect){
+                                    for(auto& param : parameterListVect){
                                         genCode("write", symboltable[param], 0);
                                     }
                                    
                                 }
                                 else if(symboltable[$1].value.compare("read") == 0){
-                                    for(int& param : parameterListVect){
+                                    for(auto& param : parameterListVect){
                                         genCode("read", symboltable[param], 0);
                                     }
                                 }
@@ -332,6 +333,7 @@ simple_expression:          term
                                       YYERROR;
                                 }
                                 $$ = checkTypes($1, $3);
+                                
                                 if($2 == '+'){
                                     genCode("add",symboltable[$$], 2 , symboltable[$1], symboltable[$3]);
                                 }
@@ -391,9 +393,9 @@ void yyerror(const string & s){
 #include <sstream>
 
 
-void handleSubprogramCall(int programId, int& resultId, vector<int> &arguments){
+void handleSubprogramCall(YYSTYPE programId, YYSTYPE& resultId, vector<YYSTYPE> &arguments){
     Symbol& subprogram = symboltable[programId];
-    int programResultId = -1;
+    YYSTYPE programResultId = 0;
     
     if(!(subprogram.token == FUNCTION || subprogram.token == PROCEDURE))
         return;
@@ -422,14 +424,14 @@ void handleSubprogramCall(int programId, int& resultId, vector<int> &arguments){
         emitter<< "\tincsp.i #" + to_string((arguments.size() * Symbol::intSize));
 }
 
-void pushFunctionParams(int functionId, vector<int> &arguments){
+void pushFunctionParams(YYSTYPE functionId, vector<YYSTYPE> &arguments){
     Symbol& function = symboltable[functionId];
-    int argumentIdx = 0;
-    int parameterIdx = function.argumentTypes.size() - 1;
+    YYSTYPE argumentIdx = 0;
+    unsigned int parameterIdx = function.argumentTypes.size() - 1;
     
     std::reverse(arguments.begin(), arguments.end());
     
-    for(int param: arguments){
+    for(auto param: arguments){
         argumentIdx = param;
         
         if(symboltable[param].token == NUM){
@@ -447,7 +449,7 @@ void pushFunctionParams(int functionId, vector<int> &arguments){
     
 }
 
-int checkTypes(int& var1, int& var2){
+YYSTYPE checkTypes(YYSTYPE& var1,YYSTYPE& var2){
     if(symboltable[var1].type != symboltable[var2].type){
         if(symboltable[var1].type == INTEGER)
             var1 =  cast(var1, REAL);
@@ -459,8 +461,8 @@ int checkTypes(int& var1, int& var2){
 }
 
 
-int cast(int varIdx, int newType){
-    int tmpIdx = 0;
+YYSTYPE cast(YYSTYPE varIdx, int newType){
+    YYSTYPE tmpIdx = 0;
     string convOpCode;
     stringstream output;
     
@@ -475,20 +477,19 @@ int cast(int varIdx, int newType){
         tmpIdx = symboltable.pushTempVar(newType);
         output << convOpCode << ' ' << symboltable[varIdx].getCodeformat(symboltable.isInGlobalScope()) << ',' << symboltable[tmpIdx].getCodeformat(symboltable.isInGlobalScope());
         emitter << output.str();
-        if(varIdx == 9){cout << symboltable[varIdx] <<endl << convOpCode << endl << tmpIdx << endl;}
         return tmpIdx;
     }
     
     return varIdx;
 }
 
-bool checkIfUndecalred(int argCount, ...){
+bool checkIfUndecalred(unsigned int argCount, ...){
     va_list ids;
     va_start(ids, argCount);
-    int idx = 0;
+    unsigned long int idx = 0;
     try{
         for(int i = 0; i < argCount; i++){
-            idx = va_arg(ids, int);
+            idx = va_arg(ids, YYSTYPE);
             symboltable[idx];
         }
     }

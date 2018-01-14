@@ -4,8 +4,12 @@
 #include <algorithm>
 #include <string>
 #include <limits>
+#include <unordered_map>
+#include <functional>
 #include <cmath>
 #include <iostream>
+
+#define lval_Type unsigned long int
 using namespace std;
 
 class SymbolTableManager
@@ -23,7 +27,7 @@ public:
 	};
 
 	struct SymbolTable {
-		vector<Symbol> symbols;
+		unordered_map<size_t ,Symbol> symbols;
 		AddressAssigner assignAddress;
 		TempVarManager createTempVariable;
         void reset();
@@ -33,7 +37,8 @@ private:
 	SymbolTable *currentTable;
 	SymbolTable globalTable;
 	SymbolTable localTable;
-
+    
+    hash<string> hashFun;
 	SymbolTableManager();
 	SymbolTableManager(SymbolTableManager&);
 	void operator = (SymbolTableManager&);
@@ -43,17 +48,17 @@ public:
 	~SymbolTableManager();
     void push(const Symbol& symbol);
 	void push(int tokenCode, string tokenVal);
-	int lookUpPush(int tokenCode, string tokenVal);
-	int lookUpPush(int tokenCode, string tokenVal, int tokenType);
-	int lookUp(const Symbol& symbol) const;
-	int lookUp(const string& value) const;
-	int pushTempVar(int type);
+	lval_Type lookUpPush(int tokenCode, string tokenVal);
+	lval_Type lookUpPush(int tokenCode, string tokenVal, int tokenType);
+	lval_Type lookUp(const Symbol& symbol) const;
+	lval_Type lookUp(const string& value) const;
+	lval_Type pushTempVar(int type);
     void setLocalScope();
     void setGlobalScope();
-    void clearScope();
+    string clearScope();
     int getStackSize();
     bool isInGlobalScope();
-	Symbol& operator [] (unsigned int);
+	Symbol& operator [] (lval_Type);
 	friend ostream& operator << (ostream& stream, SymbolTableManager& symbolTableManager);
 	void assignFreeAddress(Symbol& symbol, bool isArgument);
 

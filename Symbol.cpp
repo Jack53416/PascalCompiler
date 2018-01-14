@@ -88,7 +88,7 @@ ostream & operator<<(ostream & stream, Symbol & symbol)
     }
     if( symbol.argumentTypes.size() > 0 ){
         stream << "\targTypes: ";
-        for(int& type : symbol.argumentTypes){
+        for(auto& type : symbol.argumentTypes){
             stream<<Symbol::tokenToString(type)<<' ';
         }
     }

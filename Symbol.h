@@ -18,7 +18,7 @@ public:
 	int type;
 	int address;
     bool isReference;
-    vector<int> argumentTypes;
+    vector<long unsigned int> argumentTypes;
 
 	Symbol();
 	Symbol(int tokenCode, string tokenVal, int tokenType);

@@ -1,4 +1,5 @@
 #include "SymbolTableManager.h"
+#include <sstream>
 
 SymbolTableManager::SymbolTableManager()
 {
@@ -22,54 +23,60 @@ SymbolTableManager::~SymbolTableManager()
 
 void SymbolTableManager::push(const Symbol& symbol)
 {
-    currentTable->symbols.push_back(symbol);
+    currentTable->symbols.insert({hashFun(symbol.value), symbol});
 }
 
 void SymbolTableManager::push(int tokenCode, string tokenVal)
 {
 	Symbol symbol(tokenCode, tokenVal, Symbol::UNDEFINED);
-	currentTable->symbols.push_back(symbol);
+	currentTable->symbols.insert({hashFun(symbol.value), symbol});
 }
 
 
-Symbol& SymbolTableManager::operator[](unsigned int position)
+Symbol& SymbolTableManager::operator[](lval_Type position)
 {
 	return currentTable->symbols.at(position);
 }
 
-int SymbolTableManager::lookUpPush(int tokenCode, string tokenVal)
+lval_Type SymbolTableManager::lookUpPush(int tokenCode, string tokenVal)
 {
 	Symbol symbol(tokenCode, tokenVal, Symbol::UNDEFINED);
-	int idx = lookUp(symbol);
-	if (idx >= 0) {
+	lval_Type idx = lookUp(symbol);
+	if (idx > 0) {
 		return idx;
 	}
-	currentTable->symbols.push_back(symbol);
-	return currentTable->symbols.size() - 1;
+	currentTable->symbols.insert({hashFun(tokenVal), symbol});
+   // cout << "insert: " << symbol << " hash:  " << hashFun(tokenVal) << endl;
+    //cout << hashFun(tokenVal) << endl;
+	return hashFun(tokenVal);
 }
 
-int SymbolTableManager::lookUpPush(int tokenCode, string tokenVal, int tokenType)
+lval_Type SymbolTableManager::lookUpPush(int tokenCode, string tokenVal, int tokenType)
 {
 	Symbol symbol(tokenCode, tokenVal, tokenType);
-	int idx = lookUp(symbol);
-	if (idx >= 0) {
+    
+	lval_Type idx = lookUp(symbol);
+	if (idx > 0) {
 		return idx;
 	}
-	currentTable->symbols.push_back(symbol);
-	return currentTable->symbols.size() - 1;
+	currentTable->symbols.insert({hashFun(tokenVal), symbol});
+	return hashFun(tokenVal);
 }
 
 
-int SymbolTableManager::lookUp(const Symbol& symbol) const
+lval_Type SymbolTableManager::lookUp(const Symbol& symbol) const
 {
-	auto it = find(currentTable->symbols.begin(), currentTable->symbols.end(), symbol);
+	auto it = find_if(currentTable->symbols.begin(), currentTable->symbols.end(), [&](pair<size_t, Symbol> val){
+        return val.second == symbol;
+    });
+    
 	if (it != std::end(currentTable->symbols)) {
-		return it - currentTable->symbols.begin();
+		return it->first;
 	}
-	return -1;
+	return 0;
 }
 
-int SymbolTableManager::lookUp(const string& value) const
+lval_Type SymbolTableManager::lookUp(const string& value) const
 {
 	Symbol symbol(ID, value, Symbol::UNDEFINED);
 	return lookUp(symbol);
@@ -78,24 +85,24 @@ int SymbolTableManager::lookUp(const string& value) const
 ostream & operator<<(ostream & output, SymbolTableManager & sm)
 {
 	int idx = 0;
-	output << "Global Table:" << endl;
-	for (Symbol& symbol : sm.globalTable.symbols) {
-		output << idx << "\t" << symbol << endl;
+	output << "global Table:" << endl;
+	for (auto& it : sm.globalTable.symbols) {
+		output << idx << "\t"/*<< it.first <<"\t"*/ << it.second << endl;
 		idx++;
 	}
 	
 	if (sm.localTable.symbols.size() > 0) {
 		output << "Local Table:" << endl;
         idx = 0;
-		for (Symbol& symbol : sm.localTable.symbols) {
-			output << idx << "\t" << symbol << endl;
+		for (auto& it : sm.localTable.symbols) {
+			output << idx << "\t" << it.second << endl;
 			idx++;
 		}
 	}
 	return output;
 }
 
-int SymbolTableManager::pushTempVar(int type) {
+lval_Type SymbolTableManager::pushTempVar(int type) {
 	Symbol symbol;
 	if (type != INTEGER && type != REAL) {
 		throw std::invalid_argument(Symbol::tokenToString(type) + "is invalid type of temp variable!");
@@ -104,8 +111,9 @@ int SymbolTableManager::pushTempVar(int type) {
 	symbol.value = currentTable->createTempVariable();
 	symbol.type = type;
 	assignFreeAddress(symbol, false);
-	currentTable->symbols.push_back(symbol);
-	return currentTable->symbols.size() - 1;
+	currentTable->symbols.insert({hashFun(symbol.value), symbol});
+    //cout << "pushing temp with addr: " << hashFun(symbol.value);
+	return hashFun(symbol.value);
 }
 
 void SymbolTableManager::setLocalScope()
@@ -118,9 +126,19 @@ void SymbolTableManager::setGlobalScope()
     currentTable = &globalTable;
 }
 
-void SymbolTableManager::clearScope()
+string SymbolTableManager::clearScope()
 {
-  currentTable->reset();  
+    int idx = 0;
+    stringstream output;
+    
+    output << "local Table:" << endl;
+    for (auto& it : currentTable->symbols) {
+        output << idx << "\t"/*<< it.first <<"\t"*/ << it.second << endl;
+        idx++;
+    }
+    
+    currentTable->reset();
+    return output.str();
 }
 
 int SymbolTableManager::getStackSize()
