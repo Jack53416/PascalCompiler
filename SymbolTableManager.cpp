@@ -142,7 +142,7 @@ void SymbolTableManager::SymbolTable::reset()
     assignAddress.stackSize = 0;
     createTempVariable.tmpVariableCount = 0;
     
-    if(assignAddress.isGlobal)
+    if(!assignAddress.isGlobal)
         assignAddress.argumentStack = 8;
         
     

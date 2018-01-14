@@ -12,6 +12,9 @@
     int checkTypes(int& var1, int& var2);
     bool checkIfUndecalred(int argCount, ...);
     
+    void handleSubprogramCall(int programId, int& resultId, vector<int> &arguments);
+    void pushFunctionParams(int functionId, vector<int> &arguments);
+    
 	void yyerror(const string & s);
 	Emitter emitter("binary.asm");
 	vector<int> indentifierListVect;
@@ -105,6 +108,8 @@ subprogram_declaration:     subprogram_head declarations compound_statement
                                 emitter << "\tenter.i #" + to_string(symboltable.getStackSize());
                                 emitter.putBufferIntoFile();
                                 allowIdSymbols = true;
+                                
+                                cout << symboltable;
                                 symboltable.clearScope();
                                 symboltable.setGlobalScope();
                             }
@@ -116,6 +121,7 @@ subprogram_head:            FUNCTION ID
                                 if(checkIfUndecalred(1, $2)){
                                       YYERROR;
                                 }
+                                
                                 Symbol funReturnValue = symboltable[$2];
                                 Symbol& fun = symboltable[$2];
                                 
@@ -149,6 +155,14 @@ subprogram_head:            FUNCTION ID
                                 emitter.switchTarget(Emitter::TargetType::BUFFER);
                             } 
                             arguments ';'
+                            {
+                                symboltable.setGlobalScope();
+                                
+                                symboltable[$2].argumentTypes = parameterListVect;
+                                parameterListVect.clear();
+                                
+                                symboltable.setLocalScope();
+                            }
                             ;
 
 
@@ -200,18 +214,21 @@ statement_list:             statement
 statement:                  variable ASSIGNOP expression
                             {
                                 
-                                if(checkIfUndecalred(2, $1, $3)){
-                                      YYERROR;
-                                }
-                                if(symboltable[$1].type == INTEGER && symboltable[$3].type == REAL){
-                                    yyerror("Assigning real type to integer!");
-                                }
-                                
-                                if(symboltable[$3].type != symboltable[$1].type){
+                               try{
+                                    if(symboltable[$1].type == INTEGER && symboltable[$3].type == REAL){
+                                        yyerror("Assigning real type to integer!");
+                                    }
                                     
-                                    $3 = cast($3, symboltable[$1].type);
+                                    if(symboltable[$3].type != symboltable[$1].type){
+                                        
+                                        $3 = cast($3, symboltable[$1].type);
+                                    }
+                                    genCode("mov",symboltable[$1], 1, symboltable[$3]);
                                 }
-                                genCode("mov",symboltable[$1], 1, symboltable[$3]);
+                                catch(const std::out_of_range &ex){
+                                    yyerror("Undeclared Identifier");
+                                    YYERROR;
+                                }
                             }
                             | procedure_statement
                             | compound_statement
@@ -221,27 +238,39 @@ statement:                  variable ASSIGNOP expression
 
 
 variable:                   ID 
+                            {
+                                try{
+                                    handleSubprogramCall($1, $$, parameterListVect);
+                                }
+                                catch(const std::invalid_argument &ex){
+                                    yyerror(ex.what());
+                                    YYERROR;
+                                }
+                                catch(const std::out_of_range &ex){
+                                    yyerror("Undeclared Identifier");
+                                    YYERROR;
+                                }
+                                if(symboltable[$1].token == PROCEDURE){
+                                    yyerror("Procedure can't return value!");
+                                    YYERROR;
+                                }
+                            }
                             | ID '[' expression ']'
                             ;
 
 
 procedure_statement:        ID
                             {
-                                cout << $1 << endl;
-                                if(checkIfUndecalred(1,$1))
-                                    YYERROR;
-                                if(symboltable[$1].token == FUNCTION || symboltable[$1].token == PROCEDURE){
-                                    if(symboltable[$1].argumentTypes.size() > 0)
-                                    {
-                                        yyerror("Expected no arguments, got more");
-                                        YYERROR;
-                                    }
-                                    emitter << "\tcall.i #" + symboltable[$1].value;
+                                try{
+                                    handleSubprogramCall($1, $$, parameterListVect);
                                 }
-                                else{
- 
-                                   yyerror("Expected function call");
-                                   YYERROR;
+                                catch(const std::invalid_argument &ex){
+                                    yyerror(ex.what());
+                                    YYERROR;
+                                }
+                                catch(const std::out_of_range &ex){
+                                    yyerror("Undeclared Identifier");
+                                    YYERROR;
                                 }
                                 
                             }
@@ -250,6 +279,7 @@ procedure_statement:        ID
                                 if(checkIfUndecalred(1, $1)){
                                       YYERROR;
                                 }
+                                
                                 if(symboltable[$1].value.compare("write") == 0 ){
                                     
                                     for(int& param : parameterListVect){
@@ -261,41 +291,20 @@ procedure_statement:        ID
                                     for(int& param : parameterListVect){
                                         genCode("read", symboltable[param], 0);
                                     }
-                                
                                 }
                                 
                                 else {
-                        
-                                    if(symboltable[$1].argumentTypes.size() != parameterListVect.size()){
-                                        yyerror("Wrong argument count, required " 
-                                                + to_string(symboltable[$1].argumentTypes.size()) + "got "
-                                                + to_string(parameterListVect.size()));
+                                    try{
+                                        handleSubprogramCall($1, $$, parameterListVect);
+                                    }
+                                    catch(const std::invalid_argument &ex){
+                                        yyerror(ex.what());
                                         YYERROR;
                                     }
-                                    
-                                    // new function ?
-                                    int funResultId = 0;
-                                    if(symboltable[$1].token == FUNCTION){
-                                        funResultId = symboltable.pushTempVar(symboltable[$1].type);
-                                        symboltable[$1].address = symboltable[funResultId].address;
+                                    catch(const std::out_of_range &ex){
+                                        yyerror("Undeclared Identifier");
+                                        YYERROR;
                                     }
-                                    
-                                    
-                                    // maybe new function
-                                    int argumentIdx = 0;
-                                    std::reverse(parameterListVect.begin(), parameterListVect.end());
-                                    for(int param: parameterListVect ){
-                                        argumentIdx = param;
-                                        if(symboltable[param].token == NUM){
-                                            argumentIdx = symboltable.pushTempVar(symboltable[param].type);
-                                            genCode("mov", symboltable[argumentIdx], 1, symboltable[param]);
-                                        }
-                                        emitter << "\tpush.i #" + to_string(symboltable[argumentIdx].address);
-                                    }
-                                     emitter << "\tpush.i #" + to_string(symboltable[funResultId].address);
-                                    emitter << "\tcall.i #" + symboltable[$1].value;
-                                    emitter << "\tincsp.i #" + to_string((parameterListVect.size() + 1) * Symbol::intSize);
-                                    $$ = $1;
                                 }
                                 parameterListVect.clear();
                             }
@@ -354,37 +363,18 @@ factor:                     variable
                             | ID '(' expression_list ')'
                             
                             {
-                                 if(symboltable[$1].argumentTypes.size() != parameterListVect.size()){
-                                        yyerror("Wrong argument count, required " 
-                                                + to_string(symboltable[$1].argumentTypes.size()) + "got "
-                                                + to_string(parameterListVect.size()));
-                                        YYERROR;
-                                    }
-                                    
-                                    // new function ?
-                                    int funResultId = 0;
-                                    if(symboltable[$1].token == FUNCTION){
-                                        funResultId = symboltable.pushTempVar(symboltable[$1].type);
-                                        symboltable[$1].address = symboltable[funResultId].address;
-                                    }
-                                    
-                                    
-                                    // maybe new function
-                                    int argumentIdx = 0;
-                                    std::reverse(parameterListVect.begin(), parameterListVect.end());
-                                    for(int param: parameterListVect){
-                                        argumentIdx = param;
-                                        if(symboltable[param].token == NUM){
-                                            argumentIdx = symboltable.pushTempVar(symboltable[param].type);
-                                            genCode("mov", symboltable[argumentIdx], 1, symboltable[param]);
-                                        }
-                                        emitter << "\tpush.i #" + to_string(symboltable[argumentIdx].address);
-                                    }
-                                    emitter << "\tpush.i #" + to_string(symboltable[funResultId].address);
-                                    emitter << "\tcall.i #" + symboltable[$1].value;
-                                    emitter << "\tincsp.i #" + to_string((parameterListVect.size() + 1) * Symbol::intSize);
-                                    $$ = funResultId;
-                                    parameterListVect.clear();
+                                try{
+                                    handleSubprogramCall($1, $$, parameterListVect);
+                                }
+                                catch(const std::invalid_argument &ex){
+                                    yyerror(ex.what());
+                                    YYERROR;
+                                }
+                                catch(const std::out_of_range &ex){
+                                    yyerror("Undeclared Identifier");
+                                    YYERROR;
+                                }
+                                parameterListVect.clear();
                             }
                             | NUM
                             | '(' expression ')'
@@ -400,6 +390,62 @@ void yyerror(const string & s){
 
 #include <sstream>
 
+
+void handleSubprogramCall(int programId, int& resultId, vector<int> &arguments){
+    Symbol& subprogram = symboltable[programId];
+    int programResultId = -1;
+    
+    if(!(subprogram.token == FUNCTION || subprogram.token == PROCEDURE))
+        return;
+        
+    if(subprogram.argumentTypes.size() != arguments.size()){
+        throw std::invalid_argument("Wrong argument count, required " 
+                + to_string(subprogram.argumentTypes.size()) + ", got "
+                + to_string(arguments.size()));
+    }
+
+    if(subprogram.token == FUNCTION){
+        programResultId = symboltable.pushTempVar(subprogram.type);
+        resultId = programResultId;
+    }
+
+    pushFunctionParams(programId, arguments);
+    
+    if(subprogram.token == FUNCTION)
+        emitter << "\tpush.i #" + to_string(symboltable[programResultId].address);
+    
+    emitter << "\tcall.i #" + subprogram.value;
+    
+    if(subprogram.token == FUNCTION)
+        emitter << "\tincsp.i #" + to_string((arguments.size() + 1) * Symbol::intSize);
+    else if(arguments.size() > 0)
+        emitter<< "\tincsp.i #" + to_string((arguments.size() * Symbol::intSize));
+}
+
+void pushFunctionParams(int functionId, vector<int> &arguments){
+    Symbol& function = symboltable[functionId];
+    int argumentIdx = 0;
+    int parameterIdx = function.argumentTypes.size() - 1;
+    
+    std::reverse(arguments.begin(), arguments.end());
+    
+    for(int param: arguments){
+        argumentIdx = param;
+        
+        if(symboltable[param].token == NUM){
+            argumentIdx = symboltable.pushTempVar(symboltable[param].type);
+            genCode("mov", symboltable[argumentIdx], 1, symboltable[param]);
+        }
+        
+        if(symboltable[argumentIdx].type != function.argumentTypes.at(parameterIdx)){
+            argumentIdx = cast(argumentIdx, function.argumentTypes.at(parameterIdx));
+        }
+        
+        emitter << "\tpush.i #" + to_string(symboltable[argumentIdx].address);
+        parameterIdx--;
+    }
+    
+}
 
 int checkTypes(int& var1, int& var2){
     if(symboltable[var1].type != symboltable[var2].type){
