@@ -35,7 +35,15 @@ void SymbolTableManager::push(int tokenCode, string tokenVal)
 
 Symbol& SymbolTableManager::operator[](lval_Type position)
 {
-	return currentTable->symbols.at(position);
+    try{
+        return currentTable->symbols.at(position);
+    }
+    catch (const std::out_of_range &ex){
+        if( currentTable != &globalTable)
+            return globalTable.symbols.at(position);
+        else
+            throw std::out_of_range("Could not find symbol with key: " + to_string(position));
+    }
 }
 
 lval_Type SymbolTableManager::lookUpPush(int tokenCode, string tokenVal)
@@ -66,20 +74,30 @@ lval_Type SymbolTableManager::lookUpPush(int tokenCode, string tokenVal, int tok
 
 lval_Type SymbolTableManager::lookUp(const Symbol& symbol) const
 {
-	auto it = find_if(currentTable->symbols.begin(), currentTable->symbols.end(), [&](pair<size_t, Symbol> val){
-        return val.second == symbol;
-    });
-    
-	if (it != std::end(currentTable->symbols)) {
-		return it->first;
-	}
-	return 0;
+    lval_Type idx = find(symbol, currentTable);
+    if (currentTable != &globalTable && idx == 0){
+        return find(symbol, &globalTable);
+    }
+    return idx;
 }
 
 lval_Type SymbolTableManager::lookUp(const string& value) const
 {
 	Symbol symbol(ID, value, Symbol::UNDEFINED);
 	return lookUp(symbol);
+}
+
+lval_Type SymbolTableManager::find(const Symbol &symbol, const SymbolTable *table) const
+{
+    auto it = find_if(table->symbols.begin(), table->symbols.end(), [&](pair<size_t, Symbol> val){
+        return val.second == symbol;
+    });
+    
+    if (it != std::end(table->symbols)) {
+        return it->first;
+    }
+    
+    return 0;
 }
 
 ostream & operator<<(ostream & output, SymbolTableManager & sm)
@@ -187,6 +205,7 @@ void SymbolTableManager::AddressAssigner::operator()(Symbol & symbol, bool isArg
     }
     stackSize -= symbol.getSize();
     symbol.address = stackSize;
+    symbol.isLocal = true;
 }
 
 string SymbolTableManager::TempVarManager::operator()()

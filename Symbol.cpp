@@ -3,13 +3,13 @@
 
 
 Symbol::Symbol()
-    :token(UNDEFINED), type(UNDEFINED), address(UNDEFINED), isReference(false)
+    :token(UNDEFINED), type(UNDEFINED), address(UNDEFINED), isReference(false), isLocal(false)
 {
 }
 
 
 Symbol::Symbol(int tokenCode, string tokenVal, int tokenType)
-	: token(tokenCode), value(tokenVal), type(tokenType), address(UNDEFINED), isReference(false)
+	: token(tokenCode), value(tokenVal), type(tokenType), address(UNDEFINED), isReference(false), isLocal(false)
 {
 }
 
@@ -18,7 +18,7 @@ Symbol::~Symbol()
 	this->value.clear();
 }
 
-string Symbol::getCodeformat(bool isGlobal) const
+string Symbol::getCodeformat() const
 {
     stringstream output;
     
@@ -29,7 +29,7 @@ string Symbol::getCodeformat(bool isGlobal) const
     
     if(isReference)
         output << '*';
-    if(!isGlobal){
+    if(isLocal){
         output << "BP";
         if(address > 0){
             output << '+';

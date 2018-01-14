@@ -18,13 +18,14 @@ public:
 	int type;
 	int address;
     bool isReference;
+    bool isLocal;
     vector<long unsigned int> argumentTypes;
 
 	Symbol();
 	Symbol(int tokenCode, string tokenVal, int tokenType);
 	~Symbol();
     int getSize() const;
-	string getCodeformat(bool isGlobal) const;
+	string getCodeformat() const;
 	bool operator == (const Symbol& other)const;
 	friend ostream & operator << (ostream & stream, Symbol & symbol);
 

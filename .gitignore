@@ -40,3 +40,8 @@ parser.hpp
 
 #Compiler executable
 compiler
+
+#Test and compiled files
+
+*.asm
+*.pas

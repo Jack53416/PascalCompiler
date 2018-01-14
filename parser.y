@@ -475,7 +475,7 @@ YYSTYPE cast(YYSTYPE varIdx, int newType){
     if(symboltable[varIdx].token == VAR || (symboltable[varIdx].token == NUM && newType == INTEGER)){
    
         tmpIdx = symboltable.pushTempVar(newType);
-        output << convOpCode << ' ' << symboltable[varIdx].getCodeformat(symboltable.isInGlobalScope()) << ',' << symboltable[tmpIdx].getCodeformat(symboltable.isInGlobalScope());
+        output << convOpCode << ' ' << symboltable[varIdx].getCodeformat() << ',' << symboltable[tmpIdx].getCodeformat();
         emitter << output.str();
         return tmpIdx;
     }
@@ -514,9 +514,9 @@ void genCode(const string& opCode, const Symbol& result, int argCount, ...) {
 	output << ' ';
 
 	for (int i = 0; i < argCount; i++) {
-		output << va_arg(symbols, Symbol).getCodeformat(symboltable.isInGlobalScope()) << ',';
+		output << va_arg(symbols, Symbol).getCodeformat() << ',';
 	}
-	output << result.getCodeformat(symboltable.isInGlobalScope());
+	output << result.getCodeformat();
 	
 	
 	emitter << output.str();

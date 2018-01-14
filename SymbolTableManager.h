@@ -42,6 +42,7 @@ private:
 	SymbolTableManager();
 	SymbolTableManager(SymbolTableManager&);
 	void operator = (SymbolTableManager&);
+    lval_Type find (const Symbol &symbol, const SymbolTable *table) const;
 
 public:
 	static SymbolTableManager& getInstance();
