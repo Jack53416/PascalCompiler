@@ -1,25 +1,29 @@
 %{
-	#include "global.hpp"
-	#include <iostream>
-	#include <vector>
-	#include <algorithm>
-	#include <cstdarg>
-	using namespace std;
-	
-	SymbolTableManager& symboltable = SymbolTableManager::getInstance();
+    #include "global.hpp"
+    #include <iostream>
+    #include <vector>
+    #include <algorithm>
+    #include <cstdarg>
+    using namespace std;
+
+    SymbolTableManager& symboltable = SymbolTableManager::getInstance();
+    
     void genCode(const string& opCode, const Symbol& result, int argCount, ...);
     YYSTYPE cast(YYSTYPE varIdx, int newType);
     YYSTYPE checkTypes(YYSTYPE& var1,YYSTYPE& var2);
     bool checkIfUndecalred(unsigned int argCount, ...);
-    
     void handleSubprogramCall(YYSTYPE programId, YYSTYPE & resultId, vector<YYSTYPE> &arguments);
     void pushFunctionParams(YYSTYPE functionId, vector<YYSTYPE> &arguments);
-    
-	void yyerror(const string & s);
-	Emitter emitter("binary.asm");
-	vector<YYSTYPE> indentifierListVect;
-	vector<YYSTYPE> parameterListVect;
 
+    void yyerror(const string & s);
+    Emitter emitter("binary.asm");
+    
+    vector<YYSTYPE> indentifierListVect;
+    vector<YYSTYPE> parameterListVect;
+    
+    vector <Symbol::GeneralType> parameterTypesVect;
+    Symbol::GeneralType arrayHelper;
+    Symbol::GeneralType typeHelper;
 %}
 %define api.value.type {long unsigned int}
 %token PROGRAM
@@ -80,16 +84,37 @@ declarations:               declarations VAR identifier_list ':' type ';'
                                 for(auto id : indentifierListVect){
                                     symboltable[id].token = VAR;
                                     symboltable[id].type = $5;
+                                    if($5 == ARRAY){
+                                        symboltable[id].argumentTypes.push_back(arrayHelper);
+                                    }
                                     symboltable.assignFreeAddress(symboltable[id], false);
                                 }
+                                parameterTypesVect.clear();
                                 indentifierListVect.clear();
+                                
                             }
                             |
                             ;
 
 
 type:                       standard_type
-                            | ARRAY '[' NUM ".." NUM ']' OF standard_type
+                            | ARRAY '[' NUM '.''.' NUM ']' OF standard_type
+                            {
+                                if( symboltable[$3].type != INTEGER || symboltable[$6].type != INTEGER){
+                                    yyerror("Invalid array definition, non integer range!");
+                                    YYERROR;
+                                }
+                                arrayHelper.startIdx = std::stoi(symboltable[$3].value);
+                                arrayHelper.endIdx = std::stoi(symboltable[$6].value);
+                                
+                                if( arrayHelper.startIdx >= arrayHelper.endIdx){
+                                 yyerror("Invalid array definiton, invalid range!");
+                                 YYERROR;
+                                }
+                                arrayHelper.id = $9;
+                                //parameterTypesVect.push_back($9);
+                                $$ = ARRAY;
+                            }
                             ;
 
 standard_type:              INTEGER
@@ -143,8 +168,8 @@ subprogram_head:            FUNCTION ID
                                 string funName = symboltable[$2].value;
                                 
                                 symboltable[$2].type = $7;
-                                symboltable[$2].argumentTypes = parameterListVect; 
-                                parameterListVect.clear();
+                                symboltable[$2].argumentTypes = parameterTypesVect;
+                                parameterTypesVect.clear();
                                 symboltable.setLocalScope();
                                 symboltable[symboltable.lookUp(funName)].type = $7;
                             }
@@ -159,8 +184,8 @@ subprogram_head:            FUNCTION ID
                             {
                                 symboltable.setGlobalScope();
                                 
-                                symboltable[$2].argumentTypes = parameterListVect;
-                                parameterListVect.clear();
+                                symboltable[$2].argumentTypes = parameterTypesVect;
+                                parameterTypesVect.clear();
                                 
                                 symboltable.setLocalScope();
                             }
@@ -180,7 +205,15 @@ parameter_list:              identifier_list ':' type
                                     symboltable[id].type = $3;
                                     symboltable.assignFreeAddress(symboltable[id], true);
                                     
-                                    parameterListVect.push_back($3);
+                                    typeHelper.id = $3;
+                                    
+                                    if($3 == ARRAY){
+                                        typeHelper.id  = arrayHelper.id;
+                                        typeHelper.startIdx = arrayHelper.startIdx;
+                                        typeHelper.endIdx = arrayHelper.endIdx;
+                                    }
+                                    
+                                    parameterTypesVect.push_back(typeHelper);
                                 }
                                 indentifierListVect.clear();
                             }
@@ -192,7 +225,16 @@ parameter_list:              identifier_list ':' type
                                     symboltable[id].type = $5;
                                     symboltable.assignFreeAddress(symboltable[id], true);
                                     
-                                    parameterListVect.push_back($5);
+                                    typeHelper.id = $3;
+                                    
+                                    if($3 == ARRAY){
+                                        typeHelper.id  = arrayHelper.id;
+                                        typeHelper.startIdx = arrayHelper.startIdx;
+                                        typeHelper.endIdx = arrayHelper.endIdx;
+                                    }
+                                    
+                                    
+                                    parameterTypesVect.push_back(typeHelper);
                                 }
                                 indentifierListVect.clear();
                             }
@@ -439,8 +481,8 @@ void pushFunctionParams(YYSTYPE functionId, vector<YYSTYPE> &arguments){
             genCode("mov", symboltable[argumentIdx], 1, symboltable[param]);
         }
         
-        if(symboltable[argumentIdx].type != function.argumentTypes.at(parameterIdx)){
-            argumentIdx = cast(argumentIdx, function.argumentTypes.at(parameterIdx));
+        if(symboltable[argumentIdx].type != function.argumentTypes.at(parameterIdx).id){
+            argumentIdx = cast(argumentIdx, function.argumentTypes.at(parameterIdx).id);
         }
         
         emitter << "\tpush.i #" + to_string(symboltable[argumentIdx].address);

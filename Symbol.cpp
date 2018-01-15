@@ -48,7 +48,25 @@ int Symbol::getSize() const
 		return floatSize;
     else if(type == INTEGER || isReference) 
         return intSize;
+    else if(type == ARRAY){
+        try{
+            const GeneralType &arrayType = argumentTypes.at(0);
+            return (arrayType.endIdx - arrayType.startIdx + 1) * Symbol::getTypeSize(arrayType.id);
+        }
+        catch(const std::out_of_range &ex){
+            std::cerr << "Size error can't calculate size for symbol: " << value << endl; 
+        }
+    }
     return UNDEFINED;
+}
+
+void Symbol::addArgumentType(int typeId)
+{
+    GeneralType type;
+    type.id = typeId;
+    type.startIdx = UNDEFINED;
+    type.endIdx = UNDEFINED;
+    argumentTypes.push_back(type);
 }
 
 bool Symbol::operator==(const Symbol & other) const
@@ -89,10 +107,22 @@ ostream & operator<<(ostream & stream, Symbol & symbol)
     if( symbol.argumentTypes.size() > 0 ){
         stream << "\targTypes: ";
         for(auto& type : symbol.argumentTypes){
-            stream<<Symbol::tokenToString(type)<<' ';
+            stream << type << ' ';
         }
     }
 	return stream;
+}
+
+
+const int Symbol::getTypeSize(int type)
+{
+    switch(type){
+        case INTEGER:
+            return Symbol::intSize;
+        case REAL:
+            return Symbol::floatSize;
+    }
+    return Symbol::UNDEFINED;
 }
 
 string Symbol::tokenToString(int token)
@@ -112,7 +142,19 @@ string Symbol::tokenToString(int token)
 		return "fun";
 	case PROCEDURE:
 		return "proc";
+    case ARRAY:
+        return "array";
 	default:
 		return "unknown";
 	}
+}
+
+
+ostream & operator << (ostream & stream, Symbol::GeneralType & type)
+{
+    stream << Symbol::tokenToString(type.id);
+    if(type.startIdx != Symbol::UNDEFINED && type.endIdx != Symbol::UNDEFINED){
+        stream << '[' << type.startIdx << ".." << type.endIdx << ']';
+    }
+    return stream;
 }
