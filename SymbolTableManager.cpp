@@ -103,9 +103,21 @@ lval_Type SymbolTableManager::find(const Symbol &symbol, const SymbolTable *tabl
 ostream & operator<<(ostream & output, SymbolTableManager & sm)
 {
 	int idx = 0;
+    vector<Symbol> sortedSymbols;
+    
 	output << "global Table:" << endl;
-	for (auto& it : sm.globalTable.symbols) {
-		output << idx << "\t"/*<< it.first <<"\t"*/ << it.second << endl;
+    for (auto & it : sm.globalTable.symbols){
+        sortedSymbols.push_back(it.second);
+    }
+    
+    std::sort(sortedSymbols.begin(), sortedSymbols.end(), [&](Symbol val1, Symbol val2){
+        if(val1.address != val2.address)
+            return val1.address < val2.address;
+        return val1.value < val2.value;
+    });
+    
+	for (auto& it : sortedSymbols) {
+		output << idx << "\t"/*<< it.first <<"\t"*/ << it << endl;
 		idx++;
 	}
 	
@@ -120,14 +132,22 @@ ostream & operator<<(ostream & output, SymbolTableManager & sm)
 	return output;
 }
 
-lval_Type SymbolTableManager::pushTempVar(int type) {
+lval_Type SymbolTableManager::pushTempVar(Symbol::GeneralType type) {
 	Symbol symbol;
-	if (type != INTEGER && type != REAL) {
-		throw std::invalid_argument(Symbol::tokenToString(type) + "is invalid type of temp variable!");
+    Symbol::GeneralType tempType;
+    int simpleType = type.id;
+    
+    if(type.id == ARRAY){
+        simpleType = type.subtype;
+    }
+    
+	if (simpleType != INTEGER && simpleType != REAL) {
+		throw std::invalid_argument(Symbol::tokenToString(type.id) + "is invalid type of temp variable!");
 	}
+	tempType.id = simpleType;
 	symbol.token = VAR;
 	symbol.value = currentTable->createTempVariable();
-	symbol.type = type;
+	symbol.type = tempType;
 	assignFreeAddress(symbol, false);
 	currentTable->symbols.insert({hashFun(symbol.value), symbol});
     //cout << "pushing temp with addr: " << hashFun(symbol.value);
@@ -198,6 +218,8 @@ void SymbolTableManager::AddressAssigner::operator()(Symbol & symbol, bool isArg
         return;
         
     }
+    symbol.isLocal = true;
+    
     if(isArgument){
         symbol.address = argumentStack;
         argumentStack += symbol.getSize();
@@ -205,7 +227,7 @@ void SymbolTableManager::AddressAssigner::operator()(Symbol & symbol, bool isArg
     }
     stackSize -= symbol.getSize();
     symbol.address = stackSize;
-    symbol.isLocal = true;
+    
 }
 
 string SymbolTableManager::TempVarManager::operator()()

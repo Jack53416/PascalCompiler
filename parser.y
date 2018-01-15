@@ -9,7 +9,7 @@
     SymbolTableManager& symboltable = SymbolTableManager::getInstance();
     
     void genCode(const string& opCode, const Symbol& result, int argCount, ...);
-    YYSTYPE cast(YYSTYPE varIdx, int newType);
+    YYSTYPE cast(YYSTYPE varIdx, Symbol::GeneralType newType);
     YYSTYPE checkTypes(YYSTYPE& var1,YYSTYPE& var2);
     bool checkIfUndecalred(unsigned int argCount, ...);
     void handleSubprogramCall(YYSTYPE programId, YYSTYPE & resultId, vector<YYSTYPE> &arguments);
@@ -83,9 +83,10 @@ declarations:               declarations VAR identifier_list ':' type ';'
                             {
                                 for(auto id : indentifierListVect){
                                     symboltable[id].token = VAR;
-                                    symboltable[id].type = $5;
+                                    symboltable[id].type.id = $5;
+                                    //HERER!!!!
                                     if($5 == ARRAY){
-                                        symboltable[id].argumentTypes.push_back(arrayHelper);
+                                        symboltable[id].type = arrayHelper;
                                     }
                                     symboltable.assignFreeAddress(symboltable[id], false);
                                 }
@@ -100,10 +101,11 @@ declarations:               declarations VAR identifier_list ':' type ';'
 type:                       standard_type
                             | ARRAY '[' NUM '.''.' NUM ']' OF standard_type
                             {
-                                if( symboltable[$3].type != INTEGER || symboltable[$6].type != INTEGER){
+                                if( symboltable[$3].type.id != INTEGER || symboltable[$6].type.id != INTEGER){
                                     yyerror("Invalid array definition, non integer range!");
                                     YYERROR;
                                 }
+                                arrayHelper.id = ARRAY;
                                 arrayHelper.startIdx = std::stoi(symboltable[$3].value);
                                 arrayHelper.endIdx = std::stoi(symboltable[$6].value);
                                 
@@ -111,7 +113,7 @@ type:                       standard_type
                                  yyerror("Invalid array definiton, invalid range!");
                                  YYERROR;
                                 }
-                                arrayHelper.id = $9;
+                                arrayHelper.subtype = $9;
                                 //parameterTypesVect.push_back($9);
                                 $$ = ARRAY;
                             }
@@ -167,11 +169,11 @@ subprogram_head:            FUNCTION ID
                                 symboltable.setGlobalScope();
                                 string funName = symboltable[$2].value;
                                 
-                                symboltable[$2].type = $7;
+                                symboltable[$2].type.id = $7;
                                 symboltable[$2].argumentTypes = parameterTypesVect;
                                 parameterTypesVect.clear();
                                 symboltable.setLocalScope();
-                                symboltable[symboltable.lookUp(funName)].type = $7;
+                                symboltable[symboltable.lookUp(funName)].type.id = $7;
                             }
                             | PROCEDURE ID 
                             {
@@ -202,18 +204,17 @@ parameter_list:              identifier_list ':' type
                                 for(auto id : indentifierListVect){
                                     symboltable[id].token = VAR;
                                     symboltable[id].isReference = true;
-                                    symboltable[id].type = $3;
+                                    symboltable[id].type.id = $3;
                                     symboltable.assignFreeAddress(symboltable[id], true);
                                     
                                     typeHelper.id = $3;
                                     
                                     if($3 == ARRAY){
-                                        typeHelper.id  = arrayHelper.id;
-                                        typeHelper.startIdx = arrayHelper.startIdx;
-                                        typeHelper.endIdx = arrayHelper.endIdx;
+                                        parameterTypesVect.push_back(arrayHelper);
                                     }
-                                    
-                                    parameterTypesVect.push_back(typeHelper);
+                                    else{
+                                        parameterTypesVect.push_back(typeHelper);
+                                    }
                                 }
                                 indentifierListVect.clear();
                             }
@@ -222,19 +223,17 @@ parameter_list:              identifier_list ':' type
                                 for(auto id : indentifierListVect){
                                     symboltable[id].token = VAR;
                                     symboltable[id].isReference = true;
-                                    symboltable[id].type = $5;
+                                    symboltable[id].type.id = $5;
                                     symboltable.assignFreeAddress(symboltable[id], true);
                                     
                                     typeHelper.id = $3;
                                     
                                     if($3 == ARRAY){
-                                        typeHelper.id  = arrayHelper.id;
-                                        typeHelper.startIdx = arrayHelper.startIdx;
-                                        typeHelper.endIdx = arrayHelper.endIdx;
+                                        parameterTypesVect.push_back(arrayHelper);
                                     }
-                                    
-                                    
-                                    parameterTypesVect.push_back(typeHelper);
+                                    else{
+                                        parameterTypesVect.push_back(typeHelper);
+                                    }
                                 }
                                 indentifierListVect.clear();
                             }
@@ -258,7 +257,7 @@ statement:                  variable ASSIGNOP expression
                             {
                                 
                                try{
-                                    if(symboltable[$1].type == INTEGER && symboltable[$3].type == REAL){
+                                    if(symboltable[$1].type.id == INTEGER && symboltable[$3].type.id == REAL){
                                         yyerror("Assigning real type to integer!");
                                     }
                                     
@@ -298,7 +297,12 @@ variable:                   ID
                                     YYERROR;
                                 }
                             }
+                            
                             | ID '[' expression ']'
+                            
+                            {
+                                
+                            }
                             ;
 
 
@@ -481,8 +485,8 @@ void pushFunctionParams(YYSTYPE functionId, vector<YYSTYPE> &arguments){
             genCode("mov", symboltable[argumentIdx], 1, symboltable[param]);
         }
         
-        if(symboltable[argumentIdx].type != function.argumentTypes.at(parameterIdx).id){
-            argumentIdx = cast(argumentIdx, function.argumentTypes.at(parameterIdx).id);
+        if(symboltable[argumentIdx].type != function.argumentTypes.at(parameterIdx)){
+            argumentIdx = cast(argumentIdx, function.argumentTypes.at(parameterIdx));
         }
         
         emitter << "\tpush.i #" + to_string(symboltable[argumentIdx].address);
@@ -493,28 +497,32 @@ void pushFunctionParams(YYSTYPE functionId, vector<YYSTYPE> &arguments){
 
 YYSTYPE checkTypes(YYSTYPE& var1,YYSTYPE& var2){
     if(symboltable[var1].type != symboltable[var2].type){
-        if(symboltable[var1].type == INTEGER)
-            var1 =  cast(var1, REAL);
-        
+        if(symboltable[var1].type.id == INTEGER)
+            var1 =  cast(var1, symboltable[var2].type);
         else
-            var2 = cast(var2, REAL);
+            var2 = cast(var2, symboltable[var1].type);
     }
     return symboltable.pushTempVar(symboltable[var1].type);
 }
 
 
-YYSTYPE cast(YYSTYPE varIdx, int newType){
+YYSTYPE cast(YYSTYPE varIdx, Symbol::GeneralType newType){
     YYSTYPE tmpIdx = 0;
     string convOpCode;
     stringstream output;
     
-    if(newType == INTEGER)
+    /*if( newType.id != INTEGER && newType.id != REAL ||
+        symboltable[varIdx].type.id != INTEGER && symboltable[varIdx].type.id != REAL){
+        throw std::invalid_argument("Invalid type, cannot perform implicit cast !");
+    }*/
+    
+    if(newType.id == INTEGER)
         convOpCode = "\trealtoint.i";
     else
         convOpCode = "\tinttoreal.i";
 
 
-    if(symboltable[varIdx].token == VAR || (symboltable[varIdx].token == NUM && newType == INTEGER)){
+    if(symboltable[varIdx].token == VAR || (symboltable[varIdx].token == NUM && newType.id == INTEGER)){
    
         tmpIdx = symboltable.pushTempVar(newType);
         output << convOpCode << ' ' << symboltable[varIdx].getCodeformat() << ',' << symboltable[tmpIdx].getCodeformat();
