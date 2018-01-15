@@ -114,7 +114,6 @@ type:                       standard_type
                                  YYERROR;
                                 }
                                 arrayHelper.subtype = $9;
-                                //parameterTypesVect.push_back($9);
                                 $$ = ARRAY;
                             }
                             ;
@@ -135,8 +134,7 @@ subprogram_declaration:     subprogram_head declarations compound_statement
                                 emitter << "\tenter.i #" + to_string(symboltable.getStackSize());
                                 emitter.putBufferIntoFile();
                                 allowIdSymbols = true;
-                                
-                                //cout << symboltable;
+                        
                                 cout << symboltable.clearScope();
                                 symboltable.setGlobalScope();
                             }
@@ -213,6 +211,7 @@ parameter_list:              identifier_list ':' type
                                         parameterTypesVect.push_back(arrayHelper);
                                     }
                                     else{
+                                       
                                         parameterTypesVect.push_back(typeHelper);
                                     }
                                 }
@@ -226,9 +225,9 @@ parameter_list:              identifier_list ':' type
                                     symboltable[id].type.id = $5;
                                     symboltable.assignFreeAddress(symboltable[id], true);
                                     
-                                    typeHelper.id = $3;
+                                    typeHelper.id = $5;
                                     
-                                    if($3 == ARRAY){
+                                    if($5 == ARRAY){
                                         parameterTypesVect.push_back(arrayHelper);
                                     }
                                     else{

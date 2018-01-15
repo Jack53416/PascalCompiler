@@ -100,13 +100,14 @@ lval_Type SymbolTableManager::find(const Symbol &symbol, const SymbolTable *tabl
     return 0;
 }
 
-ostream & operator<<(ostream & output, SymbolTableManager & sm)
+string SymbolTableManager::printScope(SymbolTable& symTable, const string & name)
 {
-	int idx = 0;
+    int idx = 0;
+    stringstream output;
     vector<Symbol> sortedSymbols;
     
-	output << "global Table:" << endl;
-    for (auto & it : sm.globalTable.symbols){
+	output << "Scope: " << name << endl;
+    for (auto & it : symTable.symbols){
         sortedSymbols.push_back(it.second);
     }
     
@@ -120,14 +121,15 @@ ostream & operator<<(ostream & output, SymbolTableManager & sm)
 		output << idx << "\t"/*<< it.first <<"\t"*/ << it << endl;
 		idx++;
 	}
-	
+	output << endl;
+	return output.str();
+}
+
+ostream & operator<<(ostream & output, SymbolTableManager & sm)
+{
+	output << sm.printScope(sm.globalTable, "global");
 	if (sm.localTable.symbols.size() > 0) {
-		output << "Local Table:" << endl;
-        idx = 0;
-		for (auto& it : sm.localTable.symbols) {
-			output << idx << "\t" << it.second << endl;
-			idx++;
-		}
+		output << sm.printScope(sm.localTable, "local");
 	}
 	return output;
 }
@@ -142,7 +144,7 @@ lval_Type SymbolTableManager::pushTempVar(Symbol::GeneralType type) {
     }
     
 	if (simpleType != INTEGER && simpleType != REAL) {
-		throw std::invalid_argument(Symbol::tokenToString(type.id) + "is invalid type of temp variable!");
+		throw std::invalid_argument(Symbol::tokenToString(type.id) + " " + to_string(type.id) + " is invalid type of temp variable!");
 	}
 	tempType.id = simpleType;
 	symbol.token = VAR;
@@ -166,17 +168,9 @@ void SymbolTableManager::setGlobalScope()
 
 string SymbolTableManager::clearScope()
 {
-    int idx = 0;
-    stringstream output;
-    
-    output << "local Table:" << endl;
-    for (auto& it : currentTable->symbols) {
-        output << idx << "\t"/*<< it.first <<"\t"*/ << it.second << endl;
-        idx++;
-    }
-    
+    string result = printScope(localTable, "local");
     currentTable->reset();
-    return output.str();
+    return result;
 }
 
 int SymbolTableManager::getStackSize()

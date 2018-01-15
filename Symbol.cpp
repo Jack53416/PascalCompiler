@@ -1,6 +1,6 @@
 #include "Symbol.h"
 #include <sstream>
-
+#include <iomanip>
 
 Symbol::Symbol()
 	:token(UNDEFINED), type(), address(UNDEFINED), isReference(false), isLocal(false)
@@ -87,19 +87,19 @@ bool Symbol::operator==(const Symbol & other) const
 
 ostream & operator<<(ostream & stream, Symbol & symbol)
 {
-	stream << Symbol::tokenToString(symbol.token)
-		<< "\tvalue: " << symbol.value;
+	stream << setw(4) << left << Symbol::tokenToString(symbol.token)
+		<< setw(8) << left << "\tvalue: " << setw(10) << left << symbol.value;
 	if (symbol.type.id != Symbol::UNDEFINED) {
-		stream << "\ttype: " << symbol.type;
+		stream  <<  "\ttype: " << setw(10) <<  left << symbol.type;
 	}
 	if (symbol.address != Symbol::UNDEFINED) {
-		stream << "\taddress: " << symbol.address;
+		stream << setw(8) << "\taddress: " << setw(4) << symbol.address;
 	}
 	if (symbol.isReference != false) {
-		stream << "\treference";
+		stream << setw(11) << "\treference";
 	}
 	if (symbol.argumentTypes.size() > 0) {
-		stream << "\targTypes: ";
+		stream << setw(8) << "\targTypes: ";
 		for (auto& type : symbol.argumentTypes) {
 			stream << type << ' ';
 		}
@@ -138,6 +138,8 @@ string Symbol::tokenToString(int token)
 		return "proc";
 	case ARRAY:
 		return "array";
+    case Symbol::UNDEFINED:
+        return "UNDEFINED";
 	default:
 		return "unknown";
 	}
@@ -178,14 +180,17 @@ bool Symbol::GeneralType::operator!=(const GeneralType & other) const
 
 ostream & operator << (ostream & stream, Symbol::GeneralType & type)
 {
+    stringstream output;
+    
     if(type.id != ARRAY)
-        stream << Symbol::tokenToString(type.id);
+        output << Symbol::tokenToString(type.id);
 
     if(type.subtype != Symbol::UNDEFINED)
-        stream << Symbol::tokenToString(type.subtype);
+        output << Symbol::tokenToString(type.subtype);
 
     if (type.startIdx != Symbol::UNDEFINED && type.endIdx != Symbol::UNDEFINED) {
-        stream << '[' << type.startIdx << ".." << type.endIdx << ']';
+        output << '[' << type.startIdx << ".." << type.endIdx << ']';
     }
+    stream << output.str();
     return stream;
 }

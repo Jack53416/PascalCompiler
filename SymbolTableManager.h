@@ -59,6 +59,7 @@ public:
     string clearScope();
     int getStackSize();
     bool isInGlobalScope();
+    string printScope(SymbolTable& symTable, const string & name);
 	Symbol& operator [] (lval_Type);
 	friend ostream& operator << (ostream& stream, SymbolTableManager& symbolTableManager);
 	void assignFreeAddress(Symbol& symbol, bool isArgument);
