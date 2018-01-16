@@ -38,6 +38,7 @@ public:
 	Symbol(int tokenCode, string tokenVal, int tokenType);
 	~Symbol();
 	int getSize() const;
+    string getAddress(bool reference) const;
 	string getCodeformat() const;
 	void addArgumentType(int typeId);
 	bool operator == (const Symbol& other)const;

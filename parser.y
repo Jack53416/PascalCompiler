@@ -7,8 +7,10 @@
     using namespace std;
 
     SymbolTableManager& symboltable = SymbolTableManager::getInstance();
+
     
-    void genCode(const string& opCode, const Symbol& result, int argCount, ...);
+    void genCode(const string & opCode, const Symbol *result, bool resref, const Symbol* arg1, bool arg1ref,  const Symbol* arg2, bool arg2ref);
+    
     YYSTYPE cast(YYSTYPE varIdx, Symbol::GeneralType newType);
     YYSTYPE checkTypes(YYSTYPE& var1,YYSTYPE& var2);
     bool checkIfUndecalred(unsigned int argCount, ...);
@@ -208,6 +210,7 @@ parameter_list:              identifier_list ':' type
                                     typeHelper.id = $3;
                                     
                                     if($3 == ARRAY){
+                                        symboltable[id].type = arrayHelper;
                                         parameterTypesVect.push_back(arrayHelper);
                                     }
                                     else{
@@ -228,6 +231,7 @@ parameter_list:              identifier_list ':' type
                                     typeHelper.id = $5;
                                     
                                     if($5 == ARRAY){
+                                        symboltable[id].type = arrayHelper;
                                         parameterTypesVect.push_back(arrayHelper);
                                     }
                                     else{
@@ -264,7 +268,7 @@ statement:                  variable ASSIGNOP expression
                                         
                                         $3 = cast($3, symboltable[$1].type);
                                     }
-                                    genCode("mov",symboltable[$1], 1, symboltable[$3]);
+                                    genCode("mov",&symboltable[$1], false, &symboltable[$3], false, nullptr, false);
                                 }
                                 catch(const std::out_of_range &ex){
                                     yyerror("Undeclared Identifier");
@@ -300,6 +304,26 @@ variable:                   ID
                             | ID '[' expression ']'
                             
                             {
+                                Symbol::GeneralType tempType;
+                                tempType.id = INTEGER;
+                                
+                                if(symboltable[$1].type.id != ARRAY){
+                                    yyerror("Expected array, got " + Symbol::tokenToString(symboltable[$1].type.id));
+                                    YYERROR;
+                                }
+                                
+                                const int elementSize = Symbol::getTypeSize(symboltable[$1].type.subtype);
+                                YYSTYPE tmpVar = symboltable.pushTempVar(tempType);
+                                $$ = symboltable.pushTempVar(symboltable[$1].type);
+                                symboltable[$$].isReference = true;
+                                
+                                Symbol startIdx(NUM, to_string(symboltable[$1].type.startIdx), INTEGER);
+                                Symbol elSize(NUM, to_string(elementSize), INTEGER);
+                                
+                    
+                                genCode("sub", &symboltable[tmpVar], false, &symboltable[$3], false,  &startIdx, false);
+                                genCode("mul", &symboltable[tmpVar], false,  &symboltable[tmpVar], false, &elSize, false);
+                                genCode("add", &symboltable[$$], true, &symboltable[$1], true, &symboltable[tmpVar], false);
                                 
                             }
                             ;
@@ -329,13 +353,13 @@ procedure_statement:        ID
                                 if(symboltable[$1].value.compare("write") == 0 ){
                                     
                                     for(auto& param : parameterListVect){
-                                        genCode("write", symboltable[param], 0);
+                                        genCode("write", &symboltable[param], false,  nullptr, false, nullptr, false);
                                     }
                                    
                                 }
                                 else if(symboltable[$1].value.compare("read") == 0){
                                     for(auto& param : parameterListVect){
-                                        genCode("read", symboltable[param], 0);
+                                        genCode("read", &symboltable[param], false, nullptr, false, nullptr, false);
                                     }
                                 }
                                 
@@ -374,17 +398,20 @@ simple_expression:          term
                             | SIGN term 
                             | simple_expression SIGN term 
                             {
+                                string opCode;
+                                
                                 if(checkIfUndecalred(2, $1, $3)){
                                       YYERROR;
                                 }
                                 $$ = checkTypes($1, $3);
                                 
                                 if($2 == '+'){
-                                    genCode("add",symboltable[$$], 2 , symboltable[$1], symboltable[$3]);
+                                   opCode = "add";
                                 }
                                 else{
-                                    genCode("sub",symboltable[$$], 2 , symboltable[$1], symboltable[$3]);
+                                    opCode = "sub";
                                 }
+                                genCode(opCode, &symboltable[$$], false, &symboltable[$1], false, &symboltable[$3], false);
                             }
                             | simple_expression OR term     
                             ;
@@ -392,16 +419,19 @@ simple_expression:          term
 term:                       factor
                             | term MULOP factor
                             {
+                                string opCode;
+                                
                                 if(checkIfUndecalred(2, $1, $3)){
                                       YYERROR;
                                 }
                                 $$ = checkTypes($1, $3);
                                 if($2 == '*'){
-                                    genCode("mul",symboltable[$$], 2 , symboltable[$1], symboltable[$3]);
+                                    opCode = "mul";
                                 }
                                 else{
-                                    genCode("div",symboltable[$$], 2 , symboltable[$1], symboltable[$3]);
+                                    opCode = "div";
                                 }
+                                genCode(opCode, &symboltable[$$], false, &symboltable[$1], false, &symboltable[$3], false);
                                 
                             }
                             ;
@@ -459,7 +489,7 @@ void handleSubprogramCall(YYSTYPE programId, YYSTYPE& resultId, vector<YYSTYPE> 
     pushFunctionParams(programId, arguments);
     
     if(subprogram.token == FUNCTION)
-        emitter << "\tpush.i #" + to_string(symboltable[programResultId].address);
+        emitter << "\tpush.i " + symboltable[programResultId].getAddress(true);
     
     emitter << "\tcall.i #" + subprogram.value;
     
@@ -481,14 +511,14 @@ void pushFunctionParams(YYSTYPE functionId, vector<YYSTYPE> &arguments){
         
         if(symboltable[param].token == NUM){
             argumentIdx = symboltable.pushTempVar(symboltable[param].type);
-            genCode("mov", symboltable[argumentIdx], 1, symboltable[param]);
+            genCode("mov", &symboltable[argumentIdx], false, &symboltable[param], false, nullptr, false);
         }
         
         if(symboltable[argumentIdx].type != function.argumentTypes.at(parameterIdx)){
             argumentIdx = cast(argumentIdx, function.argumentTypes.at(parameterIdx));
         }
         
-        emitter << "\tpush.i #" + to_string(symboltable[argumentIdx].address);
+        emitter << "\tpush.i " + symboltable[argumentIdx].getAddress(true);
         parameterIdx--;
     }
     
@@ -549,26 +579,26 @@ bool checkIfUndecalred(unsigned int argCount, ...){
     return false;
 }
 
-void genCode(const string& opCode, const Symbol& result, int argCount, ...) {
-	va_list symbols;
-	va_start(symbols, argCount);
-	stringstream output;
-	output << '\t' << opCode << '.';
-
-	if (result.type == REAL)
-		output << 'r';
-	else
-		output << 'i';
-
-	output << ' ';
-
-	for (int i = 0; i < argCount; i++) {
-		output << va_arg(symbols, Symbol).getCodeformat() << ',';
-	}
-	output << result.getCodeformat();
-	
-	
-	emitter << output.str();
-
+void genCode(const string & opCode, const Symbol *result, bool resref, const Symbol* arg1, bool arg1ref,  const Symbol* arg2, bool arg2ref)
+{
+    stringstream output;
+    output << '\t' << opCode << '.';
+    
+    if (result->type == REAL)
+        output << 'r';
+    else
+        output << 'i';
+    
+    output << ' ';
+    
+    if(arg1 != nullptr){
+        output << arg1->getAddress(arg1ref) << ',';
+    }
+    
+    if(arg2 != nullptr){
+        output << arg2->getAddress(arg2ref) << ',';
+    }
+    output << result->getAddress(resref);
+    
+    emitter << output.str();
 }
-

@@ -18,6 +18,30 @@ Symbol::~Symbol()
 	this->value.clear();
 }
 
+string Symbol::getAddress(bool reference) const
+{
+    stringstream output;
+    
+    if (token == NUM) {
+		output << '#' << value;
+		return output.str();
+	}
+
+	if (isReference && !reference)
+		output << '*';
+	if (isLocal) {
+		output << "BP";
+		if (address > 0) {
+			output << '+';
+		}
+	}
+	else if(reference && !isReference){
+        output << '#';
+    }
+	output << address;
+	return output.str();
+}
+
 string Symbol::getCodeformat() const
 {
 	stringstream output;
