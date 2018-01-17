@@ -27,6 +27,7 @@ public:
 	};
 
 	struct SymbolTable {
+        string scopeName;
 		unordered_map<size_t ,Symbol> symbols;
 		AddressAssigner assignAddress;
 		TempVarManager createTempVariable;
@@ -56,10 +57,12 @@ public:
 	lval_Type pushTempVar(Symbol::GeneralType type);
     void setLocalScope();
     void setGlobalScope();
+    void setScopeName(string sName);
+    string getScopeName();
     string clearScope();
     int getStackSize();
     bool isInGlobalScope();
-    string printScope(SymbolTable& symTable, const string & name);
+    string printScope(SymbolTable& symTable);
 	Symbol& operator [] (lval_Type);
 	friend ostream& operator << (ostream& stream, SymbolTableManager& symbolTableManager);
 	void assignFreeAddress(Symbol& symbol, bool isArgument);

@@ -15,8 +15,8 @@
     YYSTYPE cast(YYSTYPE varIdx, Symbol::GeneralType newType);
     YYSTYPE checkTypes(YYSTYPE& var1,YYSTYPE& var2);
     bool checkIfUndecalred(unsigned int argCount, ...);
-    void handleSubprogramCall(YYSTYPE programId, YYSTYPE & resultId, vector<YYSTYPE> &arguments);
-    void pushFunctionParams(YYSTYPE functionId, vector<YYSTYPE> &arguments);
+    void handleSubprogramCall(YYSTYPE programId, YYSTYPE& resultId, vector<YYSTYPE> &arguments, bool callRecursively);
+    void pushFunctionParams(Symbol &function, vector<YYSTYPE> &arguments);
 
     void yyerror(const string & s);
     Emitter emitter("binary.asm");
@@ -66,7 +66,7 @@
 
 program:                    PROGRAM ID '(' identifier_list ')' ';'
                             {
-                                emitter << "\tjump.i " + emitter.getLabel();
+                                emitter << "\tjump.i #" + emitter.getLabel();
                                 indentifierListVect.clear();
                             }
                             declarations
@@ -165,7 +165,7 @@ subprogram_head:            FUNCTION ID
                                 emitter<< fun.value + ":";
                                  
                                 symboltable.setLocalScope();
-                                
+                                symboltable.setScopeName(funReturnValue.value);
                                 funReturnValue.token = VAR;
                                 funReturnValue.isReference = true;
                                 symboltable.assignFreeAddress(funReturnValue, true);
@@ -189,6 +189,7 @@ subprogram_head:            FUNCTION ID
                                 symboltable[$2].token = PROCEDURE;
                                 emitter<< symboltable[$2].value + ":";
                                 symboltable.setLocalScope();
+                                symboltable.setScopeName(symboltable[$2].value);
                                 emitter.switchTarget(Emitter::TargetType::BUFFER);
                             } 
                             arguments ';'
@@ -310,7 +311,7 @@ statement:                  variable ASSIGNOP expression
 variable:                   ID 
                             {
                                 try{
-                                    handleSubprogramCall($1, $$, parameterListVect);
+                                    handleSubprogramCall($1, $$, parameterListVect, false);
                                 }
                                 catch(const std::invalid_argument &ex){
                                     yyerror(ex.what());
@@ -357,7 +358,7 @@ variable:                   ID
 procedure_statement:        ID
                             {
                                 try{
-                                    handleSubprogramCall($1, $$, parameterListVect);
+                                    handleSubprogramCall($1, $$, parameterListVect, false);
                                 }
                                 catch(const std::invalid_argument &ex){
                                     yyerror(ex.what());
@@ -390,7 +391,10 @@ procedure_statement:        ID
                                 
                                 else {
                                     try{
-                                        handleSubprogramCall($1, $$, parameterListVect);
+                                        if( symboltable[$1].value.compare(symboltable.getScopeName()) == 0 )
+                                            handleSubprogramCall($1, $$, parameterListVect, true);
+                                        else
+                                            handleSubprogramCall($1, $$, parameterListVect, false);
                                     }
                                     catch(const std::invalid_argument &ex){
                                         yyerror(ex.what());
@@ -481,7 +485,10 @@ factor:                     variable
                             
                             {
                                 try{
-                                    handleSubprogramCall($1, $$, parameterListVect);
+                                    if( symboltable[$1].value.compare(symboltable.getScopeName()) == 0 )
+                                            handleSubprogramCall($1, $$, parameterListVect, true);
+                                        else
+                                            handleSubprogramCall($1, $$, parameterListVect, false);
                                 }
                                 catch(const std::invalid_argument &ex){
                                     yyerror(ex.what());
@@ -511,12 +518,22 @@ void yyerror(const string & s){
 #include <sstream>
 #include <iomanip>
 
-void handleSubprogramCall(YYSTYPE programId, YYSTYPE& resultId, vector<YYSTYPE> &arguments){
-    Symbol& subprogram = symboltable[programId];
+void handleSubprogramCall(YYSTYPE programId, YYSTYPE& resultId, vector<YYSTYPE> &arguments, bool callRecursively){
+    Symbol subprogram;
     YYSTYPE programResultId = 0;
-    
-    if(!(subprogram.token == FUNCTION || subprogram.token == PROCEDURE))
+    if(callRecursively){
+        symboltable.setGlobalScope();
+        subprogram = symboltable[programId];
+        symboltable.setLocalScope();
+    }
+    else{
+        subprogram = symboltable[programId];
+    }
+
+    if(!(subprogram.token == FUNCTION || subprogram.token == PROCEDURE)){
         return;
+    }
+        
         
     if(subprogram.argumentTypes.size() != arguments.size()){
         throw std::invalid_argument("Wrong argument count, required " 
@@ -529,21 +546,20 @@ void handleSubprogramCall(YYSTYPE programId, YYSTYPE& resultId, vector<YYSTYPE> 
         resultId = programResultId;
     }
 
-    pushFunctionParams(programId, arguments);
+    pushFunctionParams(subprogram, arguments);
     
     if(subprogram.token == FUNCTION)
-        emitter << "\tpush.i " + symboltable[programResultId].getAddress(true);
+        emitter << "\tpush.i\t" + symboltable[programResultId].getAddress(true);
     
-    emitter << "\tcall.i #" + subprogram.value;
+    emitter << "\tcall.i\t#" + subprogram.value;
     
     if(subprogram.token == FUNCTION)
-        emitter << "\tincsp.i #" + to_string((arguments.size() + 1) * Symbol::intSize);
+        emitter << "\tincsp.i\t#" + to_string((arguments.size() + 1) * Symbol::intSize);
     else if(arguments.size() > 0)
-        emitter<< "\tincsp.i #" + to_string((arguments.size() * Symbol::intSize));
+        emitter<< "\tincsp.i\t#" + to_string((arguments.size() * Symbol::intSize));
 }
 
-void pushFunctionParams(YYSTYPE functionId, vector<YYSTYPE> &arguments){
-    Symbol& function = symboltable[functionId];
+void pushFunctionParams(Symbol &function, vector<YYSTYPE> &arguments){
     YYSTYPE argumentIdx = 0;
     unsigned int parameterIdx = function.argumentTypes.size() - 1;
     
@@ -561,7 +577,7 @@ void pushFunctionParams(YYSTYPE functionId, vector<YYSTYPE> &arguments){
             argumentIdx = cast(argumentIdx, function.argumentTypes.at(parameterIdx));
         }
         
-        emitter << "\tpush.i " + symboltable[argumentIdx].getAddress(true);
+        emitter << "\tpush.i\t" + symboltable[argumentIdx].getAddress(true);
         parameterIdx--;
     }
     
@@ -632,7 +648,7 @@ string getOpCode(int opToken)
         case '*':
             return "mul";
         case '/':
-            return "sub";
+            return "div";
         case '<':
             return "jl";
         case '>':
@@ -671,7 +687,7 @@ void genCode(const string & opCode, const Symbol *result, bool resref, const Sym
     else
         output << 'i';
     
-    output << setw(2) << left << '\t';
+    output << '\t';
     debug << output.str().replace(0, 1, "\t;");
 
     if(arg1 != nullptr){
@@ -683,7 +699,7 @@ void genCode(const string & opCode, const Symbol *result, bool resref, const Sym
         output << arg2->getAddress(arg2ref) << ',';
         debug << arg2->value << setw(2) << left << ',';
     }
-    output << setw(10) << left << result->getAddress(resref);
+    output << setw(5) << left << result->getAddress(resref);
     debug << setw(10) << left << result->value;
     
     //output << debug.str();

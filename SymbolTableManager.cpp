@@ -5,6 +5,7 @@ SymbolTableManager::SymbolTableManager()
 {
 	currentTable = &globalTable;
     globalTable.assignAddress.isGlobal = true;
+    globalTable.scopeName = "global";
     localTable.assignAddress.argumentStack = 8;
 }
 
@@ -100,13 +101,13 @@ lval_Type SymbolTableManager::find(const Symbol &symbol, const SymbolTable *tabl
     return 0;
 }
 
-string SymbolTableManager::printScope(SymbolTable& symTable, const string & name)
+string SymbolTableManager::printScope(SymbolTable& symTable)
 {
     int idx = 0;
     stringstream output;
     vector<Symbol> sortedSymbols;
     
-	output << "Scope: " << name << endl;
+	output << "Scope: " << symTable.scopeName << endl;
     for (auto & it : symTable.symbols){
         sortedSymbols.push_back(it.second);
         //cout << it.first << '\t' << it.second << endl;
@@ -128,9 +129,9 @@ string SymbolTableManager::printScope(SymbolTable& symTable, const string & name
 
 ostream & operator<<(ostream & output, SymbolTableManager & sm)
 {
-	output << sm.printScope(sm.globalTable, "global");
+	output << sm.printScope(sm.globalTable);
 	if (sm.localTable.symbols.size() > 0) {
-		output << sm.printScope(sm.localTable, "local");
+		output << sm.printScope(sm.localTable);
 	}
 	return output;
 }
@@ -167,9 +168,17 @@ void SymbolTableManager::setGlobalScope()
     currentTable = &globalTable;
 }
 
+void SymbolTableManager::setScopeName(string sName)
+{
+    currentTable->scopeName = sName;
+}
+string SymbolTableManager::getScopeName()
+{
+    return currentTable->scopeName;
+}
 string SymbolTableManager::clearScope()
 {
-    string result = printScope(localTable, "local");
+    string result = printScope(localTable);
     currentTable->reset();
     return result;
 }
@@ -190,6 +199,7 @@ void SymbolTableManager::assignFreeAddress(Symbol& symbol, bool isArgument)
 void SymbolTableManager::SymbolTable::reset()
 {
     symbols.clear();
+    scopeName = "";
     assignAddress.stackSize = 0;
     createTempVariable.tmpVariableCount = 0;
     
