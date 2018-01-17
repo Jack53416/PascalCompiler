@@ -3,11 +3,13 @@
     #include "global.hpp"
     using namespace std;
     
+    int getOperationToken(const string & opSign);
+    
 	SymbolTableManager& symbolTable = SymbolTableManager::getInstance();
 	bool allowIdSymbols = true;
 	
-	unsigned int lineNumber = 0;
-	unsigned int charNumber = 0;
+	unsigned int lineNumber = 1;
+	unsigned int charNumber = 1;
 %}
 %option noyywrap
 
@@ -22,12 +24,9 @@ exponent    [eE][+-]?{digit}+
 num         {integer}{fraction}?{exponent}?
 
 sign        [+\-]
-mulop       [*\/]
-relop       [<>]|<=|>=|==
+mulop       [*\/]|and|mod|div
+relop       [<>]|<=|>=|=
 assignop    :=
-
-
-
 %%
 
 {delimiter}     {charNumber++; }
@@ -42,16 +41,16 @@ assignop    :=
                 }
 
 {sign}          {
-                    yylval = yytext[0];
+                    yylval = getOperationToken(yytext);
                     return SIGN; 
                 }
 {assignop}      { return ASSIGNOP; }
 {mulop}         {
-                    yylval = yytext[0];
+                    yylval = getOperationToken(yytext);
                     return MULOP; 
                 }
 {relop}         {
-                    yylval = yytext[0];
+                    yylval = getOperationToken(yytext);
                     return RELOP; 
                 }
 
@@ -92,5 +91,13 @@ while           { return WHILE; }
 .               { return yytext[0];}
 
 %%
-
+int getOperationToken(const string & opSign)
+{
+    if( opSign == ">=") return GREATER_EQUAL;
+    if( opSign == "<=") return LESS_EQUAL;
+    if( opSign == "mod") return MOD;
+    if( opSign == "div") return DIV;
+    if( opSign == "and") return AND;
+    return opSign[0];
+}
 

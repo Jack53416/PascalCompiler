@@ -39,7 +39,6 @@ public:
 	~Symbol();
 	int getSize() const;
     string getAddress(bool reference) const;
-	string getCodeformat() const;
 	void addArgumentType(int typeId);
 	bool operator == (const Symbol& other)const;
 	friend ostream & operator << (ostream & stream, Symbol & symbol);

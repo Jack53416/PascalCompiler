@@ -109,6 +109,7 @@ string SymbolTableManager::printScope(SymbolTable& symTable, const string & name
 	output << "Scope: " << name << endl;
     for (auto & it : symTable.symbols){
         sortedSymbols.push_back(it.second);
+        //cout << it.first << '\t' << it.second << endl;
     }
     
     std::sort(sortedSymbols.begin(), sortedSymbols.end(), [&](Symbol val1, Symbol val2){

@@ -22,7 +22,7 @@ string Symbol::getAddress(bool reference) const
 {
     stringstream output;
     
-    if (token == NUM) {
+    if (token == NUM || token == LABEL) {
 		output << '#' << value;
 		return output.str();
 	}
@@ -38,30 +38,6 @@ string Symbol::getAddress(bool reference) const
 	else if(reference && !isReference){
         output << '#';
     }
-	output << address;
-	return output.str();
-}
-
-string Symbol::getCodeformat() const
-{
-	stringstream output;
-
-	if (token == NUM) {
-		output << '#' << value;
-		return output.str();
-	}
-
-	if (isReference)
-		output << '*';
-	if (isLocal) {
-		output << "BP";
-		if (address > 0) {
-			output << '+';
-		}
-	}
-
-
-
 	output << address;
 	return output.str();
 }
@@ -97,10 +73,10 @@ bool Symbol::operator==(const Symbol & other) const
 
 	/*if(other.argumentTypes.size() != this->argumentTypes.size())
 	{
-	return false;
+        return false;
 	}
 	else{
-	argumentsComparison = std::equal(other.argumentTypes.begin(), other.argumentTypes.end(), this->argumentTypes.begin());
+        argumentsComparison = std::equal(other.argumentTypes.begin(), other.argumentTypes.end(), this->argumentTypes.begin());
 	}*/
 
 	if (tokenComparison && valueComparison && typeComparison && referenceComparison && argumentsComparison) {

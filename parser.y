@@ -10,6 +10,7 @@
 
     
     void genCode(const string & opCode, const Symbol *result, bool resref, const Symbol* arg1, bool arg1ref,  const Symbol* arg2, bool arg2ref);
+    string getOpCode(int opToken);
     
     YYSTYPE cast(YYSTYPE varIdx, Symbol::GeneralType newType);
     YYSTYPE checkTypes(YYSTYPE& var1,YYSTYPE& var2);
@@ -26,6 +27,7 @@
     vector <Symbol::GeneralType> parameterTypesVect;
     Symbol::GeneralType arrayHelper;
     Symbol::GeneralType typeHelper;
+    Symbol labelHelper(NUM, "lab", LABEL);
 %}
 %define api.value.type {long unsigned int}
 %token PROGRAM
@@ -53,17 +55,24 @@
 %token NOT
 %token DONE 0
 
+%token LABEL
+//Operation codes
+%token DIV
+%token MOD
+%token GREATER_EQUAL
+%token LESS_EQUAL
+%token AND
 %%
 
 program:                    PROGRAM ID '(' identifier_list ')' ';'
                             {
-                                emitter << "\tjump.i #lab0";
+                                emitter << "\tjump.i " + emitter.getLabel();
                                 indentifierListVect.clear();
                             }
                             declarations
                             subprogram_declarations
                             {
-                              emitter << emitter.getLabel() + ":"; 
+                              emitter <<"lab0:"; 
                             }
                             compound_statement '.'
                             { cout << symboltable; emitter <<"\texit";}
@@ -277,7 +286,23 @@ statement:                  variable ASSIGNOP expression
                             }
                             | procedure_statement
                             | compound_statement
-                            | IF expression THEN statement ELSE statement
+                            | IF expression 
+                            {
+                                labelHelper.value = emitter.getLabel();
+                                YYSTYPE failValIdx = symboltable.lookUpPush(NUM, "0", INTEGER);
+                                genCode("je", &labelHelper, false, &symboltable[$2], false, &symboltable[failValIdx], false);
+                            }
+                            THEN statement
+                            {
+                                Symbol labelSuccess = labelHelper;
+                                labelHelper.value = emitter.getLabel();
+                                genCode("jump", &labelHelper, false, nullptr, false, nullptr, false);
+                                emitter << labelSuccess.value + ":";
+                            }
+                            ELSE statement
+                            {
+                                emitter << labelHelper.value + ":";
+                            }
                             | WHILE expression DO statement
                             ;
 
@@ -392,46 +417,61 @@ expression_list:            expression
 
 expression:                 simple_expression
                             | simple_expression RELOP simple_expression
+                            
+                            {
+                                Symbol labelSuccess(NUM, emitter.getLabel(), LABEL);
+                                Symbol labelDone(NUM, emitter.getLabel(), LABEL);
+                                
+                                YYSTYPE failValueIdx = symboltable.lookUpPush(NUM, "0", INTEGER);
+                                YYSTYPE passValueIdx = symboltable.lookUpPush(NUM, "1", INTEGER);
+                                
+                                Symbol::GeneralType tmpType;
+                                tmpType.id = INTEGER;
+                                YYSTYPE tmpIdx = symboltable.pushTempVar(tmpType);
+                        
+                                genCode(getOpCode($2), &labelSuccess, false, &symboltable[$1], false, &symboltable[$3], false );
+                                genCode("mov", &symboltable[tmpIdx], false, &symboltable[failValueIdx], false, nullptr, false );
+                                genCode("jump", &labelDone, false, nullptr, false, nullptr, false);
+                                emitter << labelSuccess.value + ":";
+                                genCode("mov", &symboltable[tmpIdx], false, &symboltable[passValueIdx], false, nullptr, false);
+                                emitter << labelDone.value + ":";
+                                $$ = tmpIdx;
+                            }
                             ;
 
 simple_expression:          term 
                             | SIGN term 
                             | simple_expression SIGN term 
                             {
-                                string opCode;
                                 
                                 if(checkIfUndecalred(2, $1, $3)){
                                       YYERROR;
                                 }
                                 $$ = checkTypes($1, $3);
                                 
-                                if($2 == '+'){
-                                   opCode = "add";
-                                }
-                                else{
-                                    opCode = "sub";
-                                }
-                                genCode(opCode, &symboltable[$$], false, &symboltable[$1], false, &symboltable[$3], false);
+                                genCode(getOpCode($2), &symboltable[$$], false, &symboltable[$1], false, &symboltable[$3], false);
                             }
-                            | simple_expression OR term     
+                            | simple_expression OR term 
+                            {
+                                if(checkIfUndecalred(2, $1, $3)){
+                                    YYERROR;
+                                }
+                                $$ = checkTypes($1, $3);
+                                
+                                genCode("or", &symboltable[$$], false, &symboltable[$1], false, &symboltable[$3], false);
+                            }
                             ;
                             
 term:                       factor
                             | term MULOP factor
                             {
-                                string opCode;
-                                
+                                cout << getOpCode($2) << endl;
                                 if(checkIfUndecalred(2, $1, $3)){
                                       YYERROR;
                                 }
+                                
                                 $$ = checkTypes($1, $3);
-                                if($2 == '*'){
-                                    opCode = "mul";
-                                }
-                                else{
-                                    opCode = "div";
-                                }
-                                genCode(opCode, &symboltable[$$], false, &symboltable[$1], false, &symboltable[$3], false);
+                                genCode(getOpCode($2), &symboltable[$$], false, &symboltable[$1], false, &symboltable[$3], false);
                                 
                             }
                             ;
@@ -455,6 +495,9 @@ factor:                     variable
                             }
                             | NUM
                             | '(' expression ')'
+                            {
+                                $$ = $2;
+                            }
                             | NOT factor
                             ;
                         
@@ -466,7 +509,7 @@ void yyerror(const string & s){
 }
 
 #include <sstream>
-
+#include <iomanip>
 
 void handleSubprogramCall(YYSTYPE programId, YYSTYPE& resultId, vector<YYSTYPE> &arguments){
     Symbol& subprogram = symboltable[programId];
@@ -540,10 +583,10 @@ YYSTYPE cast(YYSTYPE varIdx, Symbol::GeneralType newType){
     string convOpCode;
     stringstream output;
     
-    /*if( newType.id != INTEGER && newType.id != REAL ||
+    if( newType.id != INTEGER && newType.id != REAL ||
         symboltable[varIdx].type.id != INTEGER && symboltable[varIdx].type.id != REAL){
         throw std::invalid_argument("Invalid type, cannot perform implicit cast !");
-    }*/
+    }
     
     if(newType.id == INTEGER)
         convOpCode = "\trealtoint.i";
@@ -554,7 +597,7 @@ YYSTYPE cast(YYSTYPE varIdx, Symbol::GeneralType newType){
     if(symboltable[varIdx].token == VAR || (symboltable[varIdx].token == NUM && newType.id == INTEGER)){
    
         tmpIdx = symboltable.pushTempVar(newType);
-        output << convOpCode << ' ' << symboltable[varIdx].getCodeformat() << ',' << symboltable[tmpIdx].getCodeformat();
+        output << convOpCode << ' ' << symboltable[varIdx].getAddress(false) << ',' << symboltable[tmpIdx].getAddress(false);
         emitter << output.str();
         return tmpIdx;
     }
@@ -579,26 +622,70 @@ bool checkIfUndecalred(unsigned int argCount, ...){
     return false;
 }
 
+string getOpCode(int opToken)
+{
+    switch(opToken){
+        case '+':
+            return "add";
+        case '-':
+            return "sub";
+        case '*':
+            return "mul";
+        case '/':
+            return "sub";
+        case '<':
+            return "jl";
+        case '>':
+            return "jg";
+        case GREATER_EQUAL:
+            return "jpge";
+        case LESS_EQUAL:
+            return "lge";
+        case MOD:
+            return "mod";
+        case DIV:
+            return "div";
+        case AND:
+            return "and";
+        case OR:
+            return "or";
+        case '=':
+            return "je";
+        default:
+            return "unknown";
+    }
+}
+
 void genCode(const string & opCode, const Symbol *result, bool resref, const Symbol* arg1, bool arg1ref,  const Symbol* arg2, bool arg2ref)
 {
     stringstream output;
+    stringstream debug;
+    const Symbol *typeReference = result;
     output << '\t' << opCode << '.';
     
-    if (result->type == REAL)
+    if(result->type == LABEL && arg1 != nullptr)
+        typeReference = arg1;
+        
+    if (typeReference->type == REAL)
         output << 'r';
     else
         output << 'i';
     
-    output << ' ';
-    
+    output << setw(2) << left << '\t';
+    debug << output.str().replace(0, 1, "\t;");
+
     if(arg1 != nullptr){
         output << arg1->getAddress(arg1ref) << ',';
+        debug  << arg1->value << setw(2) << left << ',';
     }
     
     if(arg2 != nullptr){
         output << arg2->getAddress(arg2ref) << ',';
+        debug << arg2->value << setw(2) << left << ',';
     }
-    output << result->getAddress(resref);
+    output << setw(10) << left << result->getAddress(resref);
+    debug << setw(10) << left << result->value;
     
+    //output << debug.str();
     emitter << output.str();
 }
