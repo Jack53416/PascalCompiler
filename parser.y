@@ -253,7 +253,6 @@ parameter_list:              identifier_list ':' type
                             ;
 
 compound_statement:         BEGIN_TOKEN optional_statements END
-
                             ;
 
 optional_statements:        statement_list
@@ -304,7 +303,25 @@ statement:                  variable ASSIGNOP expression
                             {
                                 emitter << labelHelper.value + ":";
                             }
-                            | WHILE expression DO statement
+                            | WHILE
+                            {
+                                emitter.getLabel();
+                                $$ = emitter.getLabel.labelNumber; //stop label
+                                emitter << emitter.getLabel() + ":";
+                                $1 = emitter.getLabel.labelNumber; //start label
+                            }
+                            expression DO
+                            {
+                                YYSTYPE failValIdx = symboltable.lookUpPush(NUM, "0", INTEGER);
+                                labelHelper.value = emitter.getLabel($2);
+                                genCode("je", &labelHelper, false, &symboltable[$3], false, &symboltable[failValIdx], false );
+                            }
+                            statement
+                            {
+                                labelHelper.value = emitter.getLabel($1);
+                                genCode("jump", &labelHelper, false, nullptr, false, nullptr, false);
+                                emitter << emitter.getLabel($2) + ":";
+                            }
                             ;
 
 
@@ -445,6 +462,19 @@ expression:                 simple_expression
 
 simple_expression:          term 
                             | SIGN term 
+                            {
+                                Symbol zeroVal(NUM, "0", symboltable[$2].type.id);
+                                YYSTYPE tmpIdx = 0;
+                                if( $1 == '-'  && symboltable[$2].token == VAR){
+                                    genCode("sub", &symboltable[$2], false, &zeroVal, false, &symboltable[$2], false);
+                                }
+                                else if ($1 == '-' && symboltable[$2].token == NUM){
+                                    tmpIdx = symboltable.pushTempVar(symboltable[$2].type);
+                                    genCode("sub", &symboltable[tmpIdx], false, &zeroVal, false, &symboltable[$2], false);
+                                    $2 = tmpIdx;
+                                }
+                                $$ = $2;
+                            }
                             | simple_expression SIGN term 
                             {
                                 
@@ -469,7 +499,6 @@ simple_expression:          term
 term:                       factor
                             | term MULOP factor
                             {
-                                cout << getOpCode($2) << endl;
                                 if(checkIfUndecalred(2, $1, $3)){
                                       YYERROR;
                                 }
@@ -506,6 +535,26 @@ factor:                     variable
                                 $$ = $2;
                             }
                             | NOT factor
+                            {
+                                YYSTYPE zeroIdx = symboltable.lookUpPush(NUM, "0", INTEGER);
+                                YYSTYPE oneIdx = symboltable.lookUpPush(NUM, "1", INTEGER);
+                                YYSTYPE notResult = symboltable.pushTempVar(symboltable[zeroIdx].type);
+                                string assignOneLabel = emitter.getLabel();
+                                string endNotLabel = emitter.getLabel();
+                                
+                                labelHelper.value = assignOneLabel;
+                                
+                                genCode("je", &labelHelper, false, &symboltable[$2], false, &symboltable[zeroIdx], false ); //if factor == 0 jump and assign 1, else assign 0
+                                genCode("mov", &symboltable[notResult], false, &symboltable[zeroIdx], false, nullptr, false);
+                                labelHelper.value = endNotLabel;
+                                genCode("jump", &labelHelper, false, nullptr, false, nullptr, false);
+                                
+                                emitter << assignOneLabel + ":";
+                                genCode("mov", &symboltable[notResult], false, &symboltable[oneIdx], false, nullptr, false);
+                                emitter << endNotLabel + ":";
+                                
+                                $$ = notResult;
+                            }
                             ;
                         
 %%

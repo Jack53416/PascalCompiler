@@ -7,10 +7,13 @@ using namespace std;
 class Emitter
 {
 struct labelPrinter{
-    int labelNumber = -1;
+    unsigned int labelNumber = -1;
     string operator () () {
         labelNumber++;
         return "lab" + to_string(labelNumber);
+    }
+    string operator () (unsigned int labNr){
+        return "lab" + to_string(labNr);
     }
 };
 private:
