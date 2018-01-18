@@ -75,7 +75,10 @@ program:                    PROGRAM ID '(' identifier_list ')' ';'
                               emitter << emitter.formatLine("lab0"); 
                             }
                             compound_statement '.'
-                            { cout << symboltable; emitter <<"\texit";}
+                            {
+                                cout << symboltable;
+                                emitter << emitter.formatLine("exit", "", "");
+                            }
                             ;
 
 
@@ -181,7 +184,7 @@ subprogram_head:            FUNCTION ID
                                 symboltable[$2].argumentTypes = parameterTypesVect;
                                 parameterTypesVect.clear();
                                 symboltable.setLocalScope();
-                                symboltable[symboltable.lookUp(funName)].type.id = $7;
+                                symboltable[symboltable.lookUp(funName, false)].type.id = $7;
                             }
                             | PROCEDURE ID 
                             {
@@ -269,7 +272,7 @@ statement:                  variable ASSIGNOP expression
                                 
                                try{
                                     if(symboltable[$1].type.id == INTEGER && symboltable[$3].type.id == REAL){
-                                        yyerror("Assigning real type to integer!");
+                                        emitter.emitWarning("Assigning real type to integer!", lineNumber);
                                     }
                                     
                                     if(symboltable[$3].type != symboltable[$1].type){
@@ -607,7 +610,7 @@ void handleSubprogramCall(YYSTYPE programId, YYSTYPE& resultId, vector<YYSTYPE> 
     emitter << emitter.formatLine("call.i", '#' + subprogram.value, "");
     
     if(stackSize > 0)
-        emitter << emitter.formatLine("incsp.i", to_string(stackSize), "");
+        emitter << emitter.formatLine("incsp.i", '#' + to_string(stackSize), "");
 }
 
 void pushFunctionParams(Symbol &function, vector<YYSTYPE> &arguments){

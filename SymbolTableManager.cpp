@@ -50,7 +50,7 @@ Symbol& SymbolTableManager::operator[](lval_Type position)
 lval_Type SymbolTableManager::lookUpPush(int tokenCode, string tokenVal)
 {
 	Symbol symbol(tokenCode, tokenVal, Symbol::UNDEFINED);
-	lval_Type idx = lookUp(symbol);
+	lval_Type idx = lookUp(symbol, false);
 	if (idx > 0) {
 		return idx;
 	}
@@ -64,7 +64,7 @@ lval_Type SymbolTableManager::lookUpPush(int tokenCode, string tokenVal, int tok
 {
 	Symbol symbol(tokenCode, tokenVal, tokenType);
     
-	lval_Type idx = lookUp(symbol);
+	lval_Type idx = lookUp(symbol, false);
 	if (idx > 0) {
 		return idx;
 	}
@@ -73,19 +73,19 @@ lval_Type SymbolTableManager::lookUpPush(int tokenCode, string tokenVal, int tok
 }
 
 
-lval_Type SymbolTableManager::lookUp(const Symbol& symbol) const
+lval_Type SymbolTableManager::lookUp(const Symbol& symbol, bool searchAllScopes) const
 {
     lval_Type idx = find(symbol, currentTable);
-    if (currentTable != &globalTable && idx == 0){
+    if (currentTable != &globalTable && idx == 0 && searchAllScopes){
         return find(symbol, &globalTable);
     }
     return idx;
 }
 
-lval_Type SymbolTableManager::lookUp(const string& value) const
+lval_Type SymbolTableManager::lookUp(const string& value, bool searchAllScopes) const
 {
 	Symbol symbol(ID, value, Symbol::UNDEFINED);
-	return lookUp(symbol);
+	return lookUp(symbol, searchAllScopes);
 }
 
 lval_Type SymbolTableManager::find(const Symbol &symbol, const SymbolTable *table) const

@@ -52,8 +52,8 @@ public:
 	void push(int tokenCode, string tokenVal);
 	lval_Type lookUpPush(int tokenCode, string tokenVal);
 	lval_Type lookUpPush(int tokenCode, string tokenVal, int tokenType);
-	lval_Type lookUp(const Symbol& symbol) const;
-	lval_Type lookUp(const string& value) const;
+	lval_Type lookUp(const Symbol& symbol, bool searchAllScopes) const;
+	lval_Type lookUp(const string& value, bool searchAllScopes) const;
 	lval_Type pushTempVar(Symbol::GeneralType type);
     void setLocalScope();
     void setGlobalScope();

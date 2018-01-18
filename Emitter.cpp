@@ -65,7 +65,7 @@ void Emitter::emitError(const string & error, unsigned int lineNumber) const
 
 void Emitter::emitWarning(const string & warning, unsigned int lineNumber) const
 {
-	std::cerr << "\033[1;33mError in lnie: " << lineNumber << "\033[0m\t" << warning << endl;
+	std::cerr << "\033[1;33mWarning in lnie: " << lineNumber << "\033[0m\t" << warning << endl;
 }
 
 Emitter & Emitter::operator<<(const string & value)

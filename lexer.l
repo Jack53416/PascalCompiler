@@ -83,7 +83,7 @@ while           { return WHILE; }
                     if(allowIdSymbols)
                         yylval = symbolTable.lookUpPush(ID, yytext);
                     else
-                        yylval = symbolTable.lookUp(yytext);
+                        yylval = symbolTable.lookUp(yytext, true);
                     return ID;
                 }
 
