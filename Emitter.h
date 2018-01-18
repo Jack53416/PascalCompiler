@@ -2,6 +2,8 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <iomanip>
+#include <iostream>
 using namespace std;
 
 class Emitter
@@ -26,11 +28,21 @@ public:
 		FILE,
 		BUFFER
 	};
+    static const unsigned int normalColWidth = 11;
+	static const unsigned int debugSpacing = 10;
+    
 	Emitter(const char* filepath);
 	~Emitter();
+    labelPrinter getLabel;
+    
 	void switchTarget(TargetType target);
 	void putBufferIntoFile();
-	Emitter &operator << (const string & value);
-    labelPrinter getLabel;
+    string formatLine(const string & label, const string & opcode, const string & args, const string & debugArgs) const;
+	string formatLine(const string & label) const;
+	string formatLine(const string & opcode, const string & args, const string & debugArgs) const;
+	void emitError(const string & error, unsigned int lineNumber) const;
+	void emitWarning(const string & warning, unsigned int lineNumber) const;
+    
+    Emitter &operator << (const string & value);
 };
 

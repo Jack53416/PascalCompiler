@@ -66,13 +66,13 @@
 
 program:                    PROGRAM ID '(' identifier_list ')' ';'
                             {
-                                emitter << "\tjump.i #" + emitter.getLabel();
+                                emitter << emitter.formatLine("jump.i" , '#' + emitter.getLabel(), "");
                                 indentifierListVect.clear();
                             }
                             declarations
                             subprogram_declarations
                             {
-                              emitter <<"lab0:"; 
+                              emitter << emitter.formatLine("lab0"); 
                             }
                             compound_statement '.'
                             { cout << symboltable; emitter <<"\texit";}
@@ -95,7 +95,6 @@ declarations:               declarations VAR identifier_list ':' type ';'
                                 for(auto id : indentifierListVect){
                                     symboltable[id].token = VAR;
                                     symboltable[id].type.id = $5;
-                                    //HERER!!!!
                                     if($5 == ARRAY){
                                         symboltable[id].type = arrayHelper;
                                     }
@@ -140,9 +139,9 @@ subprogram_declarations:    subprogram_declarations subprogram_declaration ';'
 subprogram_declaration:     subprogram_head declarations compound_statement
                             {
                     
-                                emitter << "\tleave" << "\treturn";
+                                emitter << emitter.formatLine("leave", "", "") << emitter.formatLine("return", "", "");
                                 emitter.switchTarget(Emitter::TargetType::FILE);
-                                emitter << "\tenter.i #" + to_string(symboltable.getStackSize());
+                                emitter << emitter.formatLine("enter.i", '#' + to_string(symboltable.getStackSize()), "" );
                                 emitter.putBufferIntoFile();
                                 allowIdSymbols = true;
                         
@@ -162,7 +161,7 @@ subprogram_head:            FUNCTION ID
                                 Symbol& fun = symboltable[$2];
                                 
                                 fun.token = FUNCTION;
-                                emitter<< fun.value + ":";
+                                emitter << emitter.formatLine(fun.value);
                                  
                                 symboltable.setLocalScope();
                                 symboltable.setScopeName(funReturnValue.value);
@@ -187,7 +186,7 @@ subprogram_head:            FUNCTION ID
                             | PROCEDURE ID 
                             {
                                 symboltable[$2].token = PROCEDURE;
-                                emitter<< symboltable[$2].value + ":";
+                                emitter << emitter.formatLine(symboltable[$2].value);
                                 symboltable.setLocalScope();
                                 symboltable.setScopeName(symboltable[$2].value);
                                 emitter.switchTarget(Emitter::TargetType::BUFFER);
@@ -297,17 +296,17 @@ statement:                  variable ASSIGNOP expression
                                 Symbol labelSuccess = labelHelper;
                                 labelHelper.value = emitter.getLabel();
                                 genCode("jump", &labelHelper, false, nullptr, false, nullptr, false);
-                                emitter << labelSuccess.value + ":";
+                                emitter << emitter.formatLine(labelSuccess.value);
                             }
                             ELSE statement
                             {
-                                emitter << labelHelper.value + ":";
+                                emitter << emitter.formatLine(labelHelper.value);
                             }
                             | WHILE
                             {
                                 emitter.getLabel();
                                 $$ = emitter.getLabel.labelNumber; //stop label
-                                emitter << emitter.getLabel() + ":";
+                                emitter << emitter.formatLine(emitter.getLabel());
                                 $1 = emitter.getLabel.labelNumber; //start label
                             }
                             expression DO
@@ -320,7 +319,7 @@ statement:                  variable ASSIGNOP expression
                             {
                                 labelHelper.value = emitter.getLabel($1);
                                 genCode("jump", &labelHelper, false, nullptr, false, nullptr, false);
-                                emitter << emitter.getLabel($2) + ":";
+                                emitter << emitter.formatLine(emitter.getLabel($2));
                             }
                             ;
 
@@ -453,9 +452,9 @@ expression:                 simple_expression
                                 genCode(getOpCode($2), &labelSuccess, false, &symboltable[$1], false, &symboltable[$3], false );
                                 genCode("mov", &symboltable[tmpIdx], false, &symboltable[failValueIdx], false, nullptr, false );
                                 genCode("jump", &labelDone, false, nullptr, false, nullptr, false);
-                                emitter << labelSuccess.value + ":";
+                                emitter << emitter.formatLine(labelSuccess.value);
                                 genCode("mov", &symboltable[tmpIdx], false, &symboltable[passValueIdx], false, nullptr, false);
-                                emitter << labelDone.value + ":";
+                                emitter << emitter.formatLine(labelDone.value);
                                 $$ = tmpIdx;
                             }
                             ;
@@ -549,10 +548,10 @@ factor:                     variable
                                 labelHelper.value = endNotLabel;
                                 genCode("jump", &labelHelper, false, nullptr, false, nullptr, false);
                                 
-                                emitter << assignOneLabel + ":";
+                                emitter << emitter.formatLine(assignOneLabel);
                                 genCode("mov", &symboltable[notResult], false, &symboltable[oneIdx], false, nullptr, false);
-                                emitter << endNotLabel + ":";
-                                
+                                emitter << emitter.formatLine(endNotLabel);
+                                 
                                 $$ = notResult;
                             }
                             ;
@@ -561,7 +560,7 @@ factor:                     variable
 
 void yyerror(const string & s){
     cout << symboltable;
-    std::cerr<< "\033[1;31mError in lnie: " << lineNumber << "\033[0m\t" << s<<endl;
+    emitter.emitError(s, lineNumber);
 }
 
 #include <sstream>
@@ -570,6 +569,8 @@ void yyerror(const string & s){
 void handleSubprogramCall(YYSTYPE programId, YYSTYPE& resultId, vector<YYSTYPE> &arguments, bool callRecursively){
     Symbol subprogram;
     YYSTYPE programResultId = 0;
+    unsigned int stackSize = 0;
+    
     if(callRecursively){
         symboltable.setGlobalScope();
         subprogram = symboltable[programId];
@@ -593,19 +594,20 @@ void handleSubprogramCall(YYSTYPE programId, YYSTYPE& resultId, vector<YYSTYPE> 
     if(subprogram.token == FUNCTION){
         programResultId = symboltable.pushTempVar(subprogram.type);
         resultId = programResultId;
+        stackSize = (arguments.size() + 1) * Symbol::intSize;
     }
+    else
+        stackSize = arguments.size() * Symbol::intSize;
 
     pushFunctionParams(subprogram, arguments);
     
     if(subprogram.token == FUNCTION)
-        emitter << "\tpush.i\t" + symboltable[programResultId].getAddress(true);
+        emitter << emitter.formatLine("push.i", symboltable[programResultId].getAddress(true), symboltable[programResultId].value);
     
-    emitter << "\tcall.i\t#" + subprogram.value;
+    emitter << emitter.formatLine("call.i", '#' + subprogram.value, "");
     
-    if(subprogram.token == FUNCTION)
-        emitter << "\tincsp.i\t#" + to_string((arguments.size() + 1) * Symbol::intSize);
-    else if(arguments.size() > 0)
-        emitter<< "\tincsp.i\t#" + to_string((arguments.size() * Symbol::intSize));
+    if(stackSize > 0)
+        emitter << emitter.formatLine("incsp.i", to_string(stackSize), "");
 }
 
 void pushFunctionParams(Symbol &function, vector<YYSTYPE> &arguments){
@@ -626,27 +628,31 @@ void pushFunctionParams(Symbol &function, vector<YYSTYPE> &arguments){
             argumentIdx = cast(argumentIdx, function.argumentTypes.at(parameterIdx));
         }
         
-        emitter << "\tpush.i\t" + symboltable[argumentIdx].getAddress(true);
+        emitter << emitter.formatLine("push.i", symboltable[argumentIdx].getAddress(true), symboltable[argumentIdx].value);
         parameterIdx--;
     }
     
 }
 
 YYSTYPE checkTypes(YYSTYPE& var1,YYSTYPE& var2){
+    Symbol::GeneralType resultType = symboltable[var1].type;
+    
     if(symboltable[var1].type != symboltable[var2].type){
         if(symboltable[var1].type.id == INTEGER)
             var1 =  cast(var1, symboltable[var2].type);
         else
             var2 = cast(var2, symboltable[var1].type);
+        resultType.id = REAL;
     }
-    return symboltable.pushTempVar(symboltable[var1].type);
+    return symboltable.pushTempVar(resultType);
 }
 
 
 YYSTYPE cast(YYSTYPE varIdx, Symbol::GeneralType newType){
     YYSTYPE tmpIdx = 0;
     string convOpCode;
-    stringstream output;
+    stringstream args;
+    stringstream debugArgs;
     
     if( newType.id != INTEGER && newType.id != REAL ||
         symboltable[varIdx].type.id != INTEGER && symboltable[varIdx].type.id != REAL){
@@ -654,16 +660,17 @@ YYSTYPE cast(YYSTYPE varIdx, Symbol::GeneralType newType){
     }
     
     if(newType.id == INTEGER)
-        convOpCode = "\trealtoint.i";
+        convOpCode = "realtoint.i";
     else
-        convOpCode = "\tinttoreal.i";
+        convOpCode = "inttoreal.i";
 
 
     if(symboltable[varIdx].token == VAR || (symboltable[varIdx].token == NUM && newType.id == INTEGER)){
    
         tmpIdx = symboltable.pushTempVar(newType);
-        output << convOpCode << ' ' << symboltable[varIdx].getAddress(false) << ',' << symboltable[tmpIdx].getAddress(false);
-        emitter << output.str();
+        args << symboltable[varIdx].getAddress(false) << ',' << symboltable[tmpIdx].getAddress(false);
+        debugArgs << symboltable[varIdx].value << ',' << symboltable[tmpIdx].value;
+        emitter << emitter.formatLine(convOpCode, args.str(), debugArgs.str());
         return tmpIdx;
     }
     
@@ -723,34 +730,30 @@ string getOpCode(int opToken)
 
 void genCode(const string & opCode, const Symbol *result, bool resref, const Symbol* arg1, bool arg1ref,  const Symbol* arg2, bool arg2ref)
 {
-    stringstream output;
-    stringstream debug;
     const Symbol *typeReference = result;
-    output << '\t' << opCode << '.';
+    string opcode = opCode;
+    stringstream args;
+    stringstream debugArgs;
     
     if(result->type == LABEL && arg1 != nullptr)
         typeReference = arg1;
         
     if (typeReference->type == REAL)
-        output << 'r';
+        opcode += ".r";
     else
-        output << 'i';
+        opcode += ".i";
     
-    output << '\t';
-    debug << output.str().replace(0, 1, "\t;");
-
     if(arg1 != nullptr){
-        output << arg1->getAddress(arg1ref) << ',';
-        debug  << arg1->value << setw(2) << left << ',';
+        args << arg1->getAddress(arg1ref) << ',';
+        debugArgs << arg1->value << ',';
     }
     
     if(arg2 != nullptr){
-        output << arg2->getAddress(arg2ref) << ',';
-        debug << arg2->value << setw(2) << left << ',';
+        args << arg2->getAddress(arg2ref) << ',';
+        debugArgs << arg2->value << ',';
     }
-    output << setw(5) << left << result->getAddress(resref);
-    debug << setw(10) << left << result->value;
+    args << result->getAddress(resref);
+    debugArgs << result->value;
     
-    //output << debug.str();
-    emitter << output.str();
+    emitter << emitter.formatLine(opcode, args.str(), debugArgs.str());
 }
