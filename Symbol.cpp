@@ -43,6 +43,12 @@ string Symbol::getAddress(bool reference) const
 	return output.str();
 }
 
+string Symbol::getValue(bool reference) const
+{
+    if(reference)
+        return '&' + value;
+    return value;
+}
 int Symbol::getSize() const
 {
 	if (type.id == REAL && !isReference)

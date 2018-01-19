@@ -37,6 +37,7 @@ public:
 	Symbol();
 	Symbol(int tokenCode, string tokenVal, int tokenType);
 	~Symbol();
+    string getValue(bool reference) const;
 	int getSize() const;
     string getAddress(bool reference) const;
 	void addArgumentType(int typeId);
