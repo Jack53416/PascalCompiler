@@ -43,6 +43,8 @@
 %token OR
 %token MULOP
 %token NOT
+%token FOR
+%token TO
 %token DONE 0
 
 %token LABEL
@@ -283,6 +285,45 @@ statement:                  variable ASSIGNOP expression
                                 labelHelper.value = emitter.getLabel($1);
                                 genCode("jump", &labelHelper, false, nullptr, false, nullptr, false);
                                 emitter << emitter.formatLine(emitter.getLabel($2));
+                            }
+                            | FOR variable ASSIGNOP expression 
+                            {
+                                // assing operation
+                                try{
+                                    if(symboltable[$2].type.id == INTEGER && symboltable[$4].type.id == REAL){
+                                        emitter.emitWarning("Assigning real type to integer!", lineNumber);
+                                    }
+                                
+                                    if(symboltable[$4].type != symboltable[$2].type){
+                                        $4 = cast($4, symboltable[$2].type);
+                                    }
+                                    genCode("mov",&symboltable[$2], false, &symboltable[$4], false, nullptr, false);
+                                }
+                                catch(const std::out_of_range &ex){
+                                    yyerror("Undeclared Identifier");
+                                    YYERROR;
+                                }
+                                catch(const std::invalid_argument &ex){
+                                    yyerror(ex.what());
+                                    YYERROR;
+                                }
+                                                                    // generate lables
+                                emitter.getLabel();
+                                $$ = emitter.getLabel.labelNumber; //finish label
+                                emitter << emitter.formatLine(emitter.getLabel());
+                                $1 = emitter.getLabel.labelNumber;  //start label
+                            } 
+                            TO expression
+                            {
+                                labelHelper.value = emitter.getLabel($5);  //if variable > expression, jump to finish
+                                genCode("jg", &labelHelper, false, &symboltable[$2], false,  &symboltable[$7], false); 
+                            }
+                            DO statement
+                            {
+                                YYSTYPE oneValueIdx = symboltable.lookUpPush(NUM, "1", INTEGER); //increment variable by 1, jump to start
+                                genCode("add", &symboltable[$2], false, &symboltable[$2], false, &symboltable[oneValueIdx], false);
+                                emitter << emitter.formatLine("jump.i", '#' + emitter.getLabel($1), "" );
+                                emitter << emitter.formatLine(emitter.getLabel($5));
                             }
                             ;
 

@@ -78,6 +78,8 @@ then            { return THEN; }
 else            { return ELSE; }
 do              { return DO; }
 while           { return WHILE; }
+for             { return FOR; }
+to              { return TO; }
 
 {id}            { 
                     if(allowIdSymbols)
