@@ -6,12 +6,7 @@
     #include <cstdarg>
     #include <sstream>
     #include <iomanip>
-    using namespace std;
-    
-    SymbolTableManager& symboltable = SymbolTableManager::getInstance();
-
-    Emitter emitter("binary.asm");
-    
+        
     vector<YYSTYPE> indentifierListVect;
     vector<YYSTYPE> parameterListVect;
     vector <Symbol::GeneralType> parameterTypesVect;
@@ -90,7 +85,7 @@ declarations:               declarations VAR identifier_list ':' type ';'
                                 for(auto id : indentifierListVect){
                                     symboltable[id].token = VAR;
                                     symboltable[id].type.id = $5;
-                                    if($5 == ARRAY){
+                                    if ($5 == ARRAY){
                                         symboltable[id].type = typeHelper;
                                     }
                                     symboltable.assignFreeAddress(symboltable[id], false);
@@ -106,7 +101,7 @@ declarations:               declarations VAR identifier_list ':' type ';'
 type:                       standard_type
                             | ARRAY '[' NUM '.''.' NUM ']' OF standard_type
                             {
-                                if( symboltable[$3].type.id != INTEGER || symboltable[$6].type.id != INTEGER){
+                                if (symboltable[$3].type.id != INTEGER || symboltable[$6].type.id != INTEGER){
                                     yyerror("Invalid array definition, non integer range!");
                                     YYERROR;
                                 }
@@ -114,7 +109,7 @@ type:                       standard_type
                                 typeHelper.startIdx = std::stoi(symboltable[$3].value);
                                 typeHelper.endIdx = std::stoi(symboltable[$6].value);
                                 
-                                if( typeHelper.startIdx >= typeHelper.endIdx){
+                                if (typeHelper.startIdx >= typeHelper.endIdx){
                                  yyerror("Invalid array definiton, invalid range!");
                                  YYERROR;
                                 }
@@ -148,7 +143,7 @@ subprogram_declaration:     subprogram_head declarations compound_statement
                         
 subprogram_head:            FUNCTION ID 
                             {
-                                if(checkIfUndecalred(1, $2)){
+                                if (checkIfUndecalred(1, $2)){
                                       YYERROR;
                                 }
                                 
@@ -230,20 +225,20 @@ statement:                  variable ASSIGNOP expression
                             {
                                 
                                try{
-                                    if(symboltable[$1].type.id == INTEGER && symboltable[$3].type.id == REAL){
+                                    if (symboltable[$1].type.id == INTEGER && symboltable[$3].type.id == REAL){
                                         emitter.emitWarning("Assigning real type to integer!", lineNumber);
                                     }
                                 
-                                    if(symboltable[$3].type != symboltable[$1].type){
+                                    if (symboltable[$3].type != symboltable[$1].type){
                                         $3 = cast($3, symboltable[$1].type);
                                     }
                                     genCode("mov",&symboltable[$1], false, &symboltable[$3], false, nullptr, false);
                                 }
-                                catch(const std::out_of_range &ex){
+                                catch (const std::out_of_range &ex){
                                     yyerror("Undeclared Identifier");
                                     YYERROR;
                                 }
-                                catch(const std::invalid_argument &ex){
+                                catch (const std::invalid_argument &ex){
                                     yyerror(ex.what());
                                     YYERROR;
                                 }
@@ -278,32 +273,32 @@ statement:                  variable ASSIGNOP expression
                             {
                                 YYSTYPE failValIdx = symboltable.lookUpPush(NUM, "0", INTEGER);
                                 labelHelper.value = emitter.getLabel($2);
-                                genCode("je", &labelHelper, false, &symboltable[$3], false, &symboltable[failValIdx], false );
+                                genCode("je", &labelHelper, false, &symboltable[$3], false, &symboltable[failValIdx], false ); // if expression == 0 jump stopLabel
                             }
                             statement
                             {
                                 labelHelper.value = emitter.getLabel($1);
-                                genCode("jump", &labelHelper, false, nullptr, false, nullptr, false);
+                                genCode("jump", &labelHelper, false, nullptr, false, nullptr, false); // jumbp to startLabel
                                 emitter << emitter.formatLine(emitter.getLabel($2));
                             }
                             | FOR variable ASSIGNOP expression 
                             {
                                 // assing operation
                                 try{
-                                    if(symboltable[$2].type.id == INTEGER && symboltable[$4].type.id == REAL){
+                                    if (symboltable[$2].type.id == INTEGER && symboltable[$4].type.id == REAL){
                                         emitter.emitWarning("Assigning real type to integer!", lineNumber);
                                     }
                                 
-                                    if(symboltable[$4].type != symboltable[$2].type){
+                                    if (symboltable[$4].type != symboltable[$2].type){
                                         $4 = cast($4, symboltable[$2].type);
                                     }
                                     genCode("mov",&symboltable[$2], false, &symboltable[$4], false, nullptr, false);
                                 }
-                                catch(const std::out_of_range &ex){
+                                catch (const std::out_of_range &ex){
                                     yyerror("Undeclared Identifier");
                                     YYERROR;
                                 }
-                                catch(const std::invalid_argument &ex){
+                                catch (const std::invalid_argument &ex){
                                     yyerror(ex.what());
                                     YYERROR;
                                 }
@@ -333,15 +328,15 @@ variable:                   ID
                                 try{
                                     handleSubprogramCall($1, $$, parameterListVect, false);
                                 }
-                                catch(const std::invalid_argument &ex){
+                                catch (const std::invalid_argument &ex){
                                     yyerror(ex.what());
                                     YYERROR;
                                 }
-                                catch(const std::out_of_range &ex){
+                                catch (const std::out_of_range &ex){
                                     yyerror("Undeclared Identifier");
                                     YYERROR;
                                 }
-                                if(symboltable[$1].token == PROCEDURE){
+                                if (symboltable[$1].token == PROCEDURE){
                                     yyerror("Procedure can't return value!");
                                     YYERROR;
                                 }
@@ -354,12 +349,12 @@ variable:                   ID
                                 tempType.id = INTEGER;
                                 
                                 try{
-                                    if(symboltable[$1].type.id != ARRAY){
+                                    if (symboltable[$1].type.id != ARRAY){
                                         yyerror("Expected array, got " + Symbol::tokenToString(symboltable[$1].type.id));
                                         YYERROR;
                                     }
                                 }
-                                catch(const std::out_of_range & ex){
+                                catch (const std::out_of_range & ex){
                                     yyerror("Undeclared Identifier");
                                     YYERROR;
                                 }
@@ -383,14 +378,14 @@ variable:                   ID
 
 procedure_statement:        ID
                             {
-                                try{
+                                try {
                                     handleSubprogramCall($1, $$, parameterListVect, false);
                                 }
-                                catch(const std::invalid_argument &ex){
+                                catch (const std::invalid_argument &ex){
                                     yyerror(ex.what());
                                     YYERROR;
                                 }
-                                catch(const std::out_of_range &ex){
+                                catch (const std::out_of_range &ex){
                                     yyerror("Undeclared Identifier");
                                     YYERROR;
                                 }
@@ -398,35 +393,35 @@ procedure_statement:        ID
                             }
                             | ID '(' expression_list ')'
                             {
-                                if(checkIfUndecalred(1, $1)){
+                                if (checkIfUndecalred(1, $1)){
                                       YYERROR;
                                 }
                                 
-                                if(symboltable[$1].value.compare("write") == 0 ){
+                                if (symboltable[$1].value.compare("write") == 0 ){
                                     
                                     for(auto& param : parameterListVect){
                                         genCode("write", &symboltable[param], false,  nullptr, false, nullptr, false);
                                     }
                                    
                                 }
-                                else if(symboltable[$1].value.compare("read") == 0){
-                                    for(auto& param : parameterListVect){
+                                else if (symboltable[$1].value.compare("read") == 0){
+                                    for (auto& param : parameterListVect){
                                         genCode("read", &symboltable[param], false, nullptr, false, nullptr, false);
                                     }
                                 }
                                 
                                 else {
                                     try{
-                                        if( symboltable[$1].value.compare(symboltable.getScopeName()) == 0 )
+                                        if ( symboltable[$1].value.compare(symboltable.getScopeName()) == 0 )
                                             handleSubprogramCall($1, $$, parameterListVect, true);
                                         else
                                             handleSubprogramCall($1, $$, parameterListVect, false);
                                     }
-                                    catch(const std::invalid_argument &ex){
+                                    catch (const std::invalid_argument &ex){
                                         yyerror(ex.what());
                                         YYERROR;
                                     }
-                                    catch(const std::out_of_range &ex){
+                                    catch (const std::out_of_range &ex){
                                         yyerror("Undeclared Identifier");
                                         YYERROR;
                                     }
@@ -474,7 +469,7 @@ simple_expression:          term
                             {
                                 Symbol zeroVal(NUM, "0", symboltable[$2].type.id);
                                 YYSTYPE tmpIdx = 0;
-                                if( $1 == '-'  && symboltable[$2].token == VAR){
+                                if ($1 == '-'  && symboltable[$2].token == VAR){
                                     genCode("sub", &symboltable[$2], false, &zeroVal, false, &symboltable[$2], false);
                                 }
                                 else if ($1 == '-' && symboltable[$2].token == NUM){
@@ -489,11 +484,11 @@ simple_expression:          term
                                 try{
                                     $$ = checkTypes($1, $3);
                                 }
-                                catch(const std::out_of_range & ex){
+                                catch (const std::out_of_range & ex){
                                     yyerror("Undeclared Identifier !");
                                     YYERROR;
                                 }
-                                catch(const std::invalid_argument & ex){
+                                catch (const std::invalid_argument & ex){
                                     yyerror(ex.what());
                                     YYERROR;
                                 }
@@ -504,11 +499,11 @@ simple_expression:          term
                                 try{
                                     $$ = checkTypes($1, $3);
                                 }
-                                catch(const std::out_of_range & ex){
+                                catch (const std::out_of_range & ex){
                                     yyerror("Undeclared Identifier !");
                                     YYERROR;
                                 }
-                                catch(const std::invalid_argument & ex){
+                                catch (const std::invalid_argument & ex){
                                     yyerror(ex.what());
                                     YYERROR;
                                 }
@@ -522,11 +517,11 @@ term:                       factor
                                 try{
                                     $$ = checkTypes($1, $3);
                                 }
-                                catch(const std::out_of_range & ex){
+                                catch (const std::out_of_range & ex){
                                     yyerror("Undeclared Identifier !");
                                     YYERROR;
                                 }
-                                catch(const std::invalid_argument & ex){
+                                catch (const std::invalid_argument & ex){
                                     yyerror(ex.what());
                                     YYERROR;
                                 }
@@ -544,11 +539,11 @@ factor:                     variable
                                         else
                                             handleSubprogramCall($1, $$, parameterListVect, false);
                                 }
-                                catch(const std::invalid_argument &ex){
+                                catch (const std::invalid_argument &ex){
                                     yyerror(ex.what());
                                     YYERROR;
                                 }
-                                catch(const std::out_of_range &ex){
+                                catch (const std::out_of_range &ex){
                                     yyerror("Undeclared Identifier");
                                     YYERROR;
                                 }
@@ -590,12 +585,12 @@ void yyerror(const string & s){
 }
 
 void assignParameterType(int typeId){
-    for(auto id : indentifierListVect){
+    for (auto id : indentifierListVect){
         symboltable[id].token = VAR;
         symboltable[id].isReference = true;
         symboltable.assignFreeAddress(symboltable[id], true);
         typeHelper.id = typeId;
-        if(typeId == ARRAY){
+        if (typeId == ARRAY){
             symboltable[id].type = typeHelper;
         }
         else{
@@ -612,7 +607,7 @@ void handleSubprogramCall(YYSTYPE programId, YYSTYPE& resultId, vector<YYSTYPE> 
     YYSTYPE programResultId = 0;
     unsigned int stackSize = 0;
     
-    if(callRecursively){
+    if (callRecursively){
         symboltable.setGlobalScope();
         subprogram = symboltable[programId];
         symboltable.setLocalScope();
@@ -621,18 +616,18 @@ void handleSubprogramCall(YYSTYPE programId, YYSTYPE& resultId, vector<YYSTYPE> 
         subprogram = symboltable[programId];
     }
 
-    if(!(subprogram.token == FUNCTION || subprogram.token == PROCEDURE)){
+    if (!(subprogram.token == FUNCTION || subprogram.token == PROCEDURE)){
         return;
     }
         
         
-    if(subprogram.argumentTypes.size() != arguments.size()){
+    if (subprogram.argumentTypes.size() != arguments.size()){
         throw std::invalid_argument("Wrong argument count, required " 
                 + to_string(subprogram.argumentTypes.size()) + ", got "
                 + to_string(arguments.size()));
     }
 
-    if(subprogram.token == FUNCTION){
+    if (subprogram.token == FUNCTION){
         programResultId = symboltable.pushTempVar(subprogram.type);
         resultId = programResultId;
         stackSize = (arguments.size() + 1) * Symbol::intSize;
@@ -642,12 +637,12 @@ void handleSubprogramCall(YYSTYPE programId, YYSTYPE& resultId, vector<YYSTYPE> 
 
     pushFunctionParams(subprogram, arguments);
     
-    if(subprogram.token == FUNCTION)
+    if (subprogram.token == FUNCTION)
         emitter << emitter.formatLine("push.i", symboltable[programResultId].getAddress(true), symboltable[programResultId].getValue(true));
     
     emitter << emitter.formatLine("call.i", '#' + subprogram.value, "");
     
-    if(stackSize > 0)
+    if (stackSize > 0)
         emitter << emitter.formatLine("incsp.i", '#' + to_string(stackSize), "");
 }
 
@@ -657,15 +652,15 @@ void pushFunctionParams(Symbol &function, vector<YYSTYPE> &arguments){
     
     std::reverse(arguments.begin(), arguments.end());
     
-    for(auto param: arguments){
+    for (auto param: arguments){
         argumentIdx = param;
         
-        if(symboltable[param].token == NUM){
+        if (symboltable[param].token == NUM){
             argumentIdx = symboltable.pushTempVar(symboltable[param].type);
             genCode("mov", &symboltable[argumentIdx], false, &symboltable[param], false, nullptr, false);
         }
         
-        if(symboltable[argumentIdx].type != function.argumentTypes.at(parameterIdx)){
+        if (symboltable[argumentIdx].type != function.argumentTypes.at(parameterIdx)){
             argumentIdx = cast(argumentIdx, function.argumentTypes.at(parameterIdx));
         }
         
@@ -678,8 +673,8 @@ void pushFunctionParams(Symbol &function, vector<YYSTYPE> &arguments){
 YYSTYPE checkTypes(YYSTYPE& var1,YYSTYPE& var2){
     Symbol::GeneralType resultType = symboltable[var1].type;
     
-    if(symboltable[var1].type != symboltable[var2].type){
-        if(symboltable[var1].type.id == INTEGER)
+    if (symboltable[var1].type != symboltable[var2].type){
+        if (symboltable[var1].type.id == INTEGER)
             var1 =  cast(var1, symboltable[var2].type);
         else
             var2 = cast(var2, symboltable[var1].type);
@@ -695,18 +690,18 @@ YYSTYPE cast(YYSTYPE varIdx, Symbol::GeneralType newType){
     stringstream args;
     stringstream debugArgs;
     
-    if( newType.id != INTEGER && newType.id != REAL ||
+    if (newType.id != INTEGER && newType.id != REAL ||
         symboltable[varIdx].type.id != INTEGER && symboltable[varIdx].type.id != REAL){
         throw std::invalid_argument("Invalid type, cannot perform implicit cast !");
     }
     
-    if(newType.id == INTEGER)
+    if (newType.id == INTEGER)
         convOpCode = "realtoint.i";
     else
         convOpCode = "inttoreal.i";
 
 
-    if(symboltable[varIdx].token == VAR || (symboltable[varIdx].token == NUM && newType.id == INTEGER)){
+    if (symboltable[varIdx].token == VAR || (symboltable[varIdx].token == NUM && newType.id == INTEGER)){
    
         tmpIdx = symboltable.pushTempVar(newType);
         args << symboltable[varIdx].getAddress(false) << ',' << symboltable[tmpIdx].getAddress(false);
@@ -776,7 +771,7 @@ void genCode(const string & opCode, const Symbol *result, bool resref, const Sym
     stringstream args;
     stringstream debugArgs;
     
-    if(result->type == LABEL && arg1 != nullptr)
+    if (result->type == LABEL && arg1 != nullptr)
         typeReference = arg1;
         
     if (typeReference->type == REAL)
@@ -784,12 +779,12 @@ void genCode(const string & opCode, const Symbol *result, bool resref, const Sym
     else
         opcode += ".i";
     
-    if(arg1 != nullptr){
+    if (arg1 != nullptr){
         args << arg1->getAddress(arg1ref) << ',';
         debugArgs << arg1->getValue(arg1ref) << ',';
     }
     
-    if(arg2 != nullptr){
+    if (arg2 != nullptr){
         args << arg2->getAddress(arg2ref) << ',';
         debugArgs << arg2->getValue(arg2ref) << ',';
     }

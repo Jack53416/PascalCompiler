@@ -1,9 +1,13 @@
 #include "Emitter.h"
 
-Emitter::Emitter(const char* filepath)
+Emitter::Emitter(const string & filepath)
 {
-	this->file.open(filepath, ios::out);
-	currentTarget = &file;
+	openFile(filepath);
+}
+
+Emitter::Emitter()
+{
+    
 }
 
 Emitter::~Emitter()
@@ -11,6 +15,17 @@ Emitter::~Emitter()
 	file.close();
 }
 
+void Emitter::openFile(const string & filepath)
+{
+    if (file.is_open()){
+        file.close();
+    }
+    file.open(filepath, ios::out);
+    currentTarget = &file;
+    if (!file){
+        throw ios_base::failure("Failed to open file!");
+    }
+}
 void Emitter::switchTarget(TargetType target)
 {
 	if (target == FILE)

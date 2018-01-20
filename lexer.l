@@ -1,15 +1,11 @@
 %{
     #include <iostream>
     #include "global.hpp"
-    using namespace std;
     
-    int getOperationToken(const string & opSign);
-    
-	SymbolTableManager& symbolTable = SymbolTableManager::getInstance();
-	bool allowIdSymbols = true;
+	SymbolTableManager& symboltable = SymbolTableManager::getInstance();
 	
+	bool allowIdSymbols = true;
 	unsigned int lineNumber = 1;
-	unsigned int charNumber = 1;
 %}
 %option noyywrap
 
@@ -29,14 +25,14 @@ relop       [<>]|<=|>=|=
 assignop    :=
 %%
 
-{delimiter}     {charNumber++; }
-\n              {lineNumber++; charNumber = 0;}
+{delimiter}     {}
+\n              {lineNumber++;}
 {integer}       { 
-                    yylval = symbolTable.lookUpPush(NUM, yytext, INTEGER);
+                    yylval = symboltable.lookUpPush(NUM, yytext, INTEGER);
                     return NUM; 
                 }
 {num}           { 
-                    yylval = symbolTable.lookUpPush(NUM, yytext, REAL); 
+                    yylval = symboltable.lookUpPush(NUM, yytext, REAL); 
                     return NUM; 
                 }
 
@@ -83,9 +79,9 @@ to              { return TO; }
 
 {id}            { 
                     if(allowIdSymbols)
-                        yylval = symbolTable.lookUpPush(ID, yytext);
+                        yylval = symboltable.lookUpPush(ID, yytext);
                     else
-                        yylval = symbolTable.lookUp(yytext, true);
+                        yylval = symboltable.lookUp(yytext, true);
                     return ID;
                 }
 

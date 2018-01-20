@@ -15,46 +15,46 @@ using namespace std;
 class SymbolTableManager
 {
 public:
-	struct TempVarManager {
-		int tmpVariableCount = 0;
-		string operator()();
-	};
-	struct AddressAssigner {
-		int stackSize = 0;
+    struct TempVarManager {
+        int tmpVariableCount = 0;
+        string operator()();
+    };
+    struct AddressAssigner {
+        int stackSize = 0;
         int argumentStack = 0; 
         bool isGlobal = false;
-		void operator () (Symbol& symbol, bool isArgument);
-	};
+        void operator () (Symbol& symbol, bool isArgument);
+    };
 
-	struct SymbolTable {
+    struct SymbolTable {
         string scopeName;
-		unordered_map<size_t ,Symbol> symbols;
-		AddressAssigner assignAddress;
-		TempVarManager createTempVariable;
+        unordered_map<size_t ,Symbol> symbols;
+        AddressAssigner assignAddress;
+        TempVarManager createTempVariable;
         void reset();
-	};
+    };
 
 private:
-	SymbolTable *currentTable;
-	SymbolTable globalTable;
-	SymbolTable localTable;
-    
+    SymbolTable *currentTable;
+    SymbolTable globalTable;
+    SymbolTable localTable;
+
     hash<string> hashFun;
-	SymbolTableManager();
-	SymbolTableManager(SymbolTableManager&);
-	void operator = (SymbolTableManager&);
+    SymbolTableManager();
+    SymbolTableManager(SymbolTableManager&);
+    void operator = (SymbolTableManager&);
     lval_Type find (const Symbol &symbol, const SymbolTable *table) const;
 
 public:
-	static SymbolTableManager& getInstance();
-	~SymbolTableManager();
+    static SymbolTableManager& getInstance();
+    ~SymbolTableManager();
     void push(const Symbol& symbol);
-	void push(int tokenCode, string tokenVal);
-	lval_Type lookUpPush(int tokenCode, string tokenVal);
-	lval_Type lookUpPush(int tokenCode, string tokenVal, int tokenType);
-	lval_Type lookUp(const Symbol& symbol, bool searchAllScopes) const;
-	lval_Type lookUp(const string& value, bool searchAllScopes) const;
-	lval_Type pushTempVar(Symbol::GeneralType type);
+    void push(int tokenCode, string tokenVal);
+    lval_Type lookUpPush(int tokenCode, string tokenVal);
+    lval_Type lookUpPush(int tokenCode, string tokenVal, int tokenType);
+    lval_Type lookUp(const Symbol& symbol, bool searchAllScopes) const;
+    lval_Type lookUp(const string& value, bool searchAllScopes) const;
+    lval_Type pushTempVar(Symbol::GeneralType type);
     void setLocalScope();
     void setGlobalScope();
     void setScopeName(string sName);
@@ -63,9 +63,9 @@ public:
     int getStackSize();
     bool isInGlobalScope();
     string printScope(SymbolTable& symTable);
-	Symbol& operator [] (lval_Type);
-	friend ostream& operator << (ostream& stream, SymbolTableManager& symbolTableManager);
-	void assignFreeAddress(Symbol& symbol, bool isArgument);
+    Symbol& operator [] (lval_Type);
+    friend ostream& operator << (ostream& stream, SymbolTableManager& symbolTableManager);
+    void assignFreeAddress(Symbol& symbol, bool isArgument);
 
 };
 

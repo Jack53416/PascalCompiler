@@ -6,10 +6,22 @@
 #include "Emitter.h"
 #include "Symbol.h"
 
+using namespace std;
 
 extern unsigned int lineNumber;
 extern bool allowIdSymbols;
+extern Emitter emitter;
+extern FILE* yyin;
+extern SymbolTableManager& symboltable;
+
+
+/*main.cpp*/
 int yylex();
+void initSymbolTable();
+void initInputOutput(int argc, char* argv[], FILE *inputFile);
+
+/*lexer.l*/
+int getOperationToken(const string & opSign);
 
 /*Parser.y*/
 void assignParameterType(int typeId);

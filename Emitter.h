@@ -31,10 +31,12 @@ public:
     static const unsigned int normalColWidth = 11;
 	static const unsigned int debugSpacing = 10;
     
-	Emitter(const char* filepath);
+	Emitter(const string & filepath);
+    Emitter();
 	~Emitter();
     labelPrinter getLabel;
     
+    void openFile(const string & filepath);
 	void switchTarget(TargetType target);
 	void putBufferIntoFile();
     string formatLine(const string & label, const string & opcode, const string & args, const string & debugArgs) const;
